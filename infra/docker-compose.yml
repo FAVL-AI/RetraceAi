@@ -8,7 +8,7 @@ services:
       POSTGRES_DB: retrace
       POSTGRES_USER: retrace_app          # NOT owner/superuser in production; see RX-47
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
-    ports: ["127.0.0.1:5433:5432"]        # loopback only
+    ports: ["127.0.0.1:${RETRACE_PG_PORT:-5440}:5432"]        # loopback only
     volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U retrace_app -d retrace"]
