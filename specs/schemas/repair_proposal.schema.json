@@ -55,7 +55,7 @@
     },
     "unified_diff": {
       "description": "The patch itself, in unified diff format. Never file content.",
-      "maxLength": 1048576,
+      "maxLength": 4194304,
       "minLength": 1,
       "title": "Unified Diff",
       "type": "string"

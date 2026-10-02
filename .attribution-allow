@@ -31,6 +31,14 @@
 # anybody. Narrowed to evidence records and the requirement matrix; source
 # directories are deliberately not listed.
 
+# The repository's own attribution detector. A detector necessarily contains the
+# vendor vocabulary it refuses: VENDOR_NAMES is the single source of truth the
+# pattern is built from. Listing it drops the vendor-NAME scan only; the
+# prose-credit and anchored scans still apply to it, and it contains no
+# hand-spelled credit - every hostile fixture is composed at runtime from a
+# vendor token plus an incomplete template, neither of which is a claim alone.
+tests/governance/test_attribution_policy.py
+
 .attribution-allow
 docs/evidence/*
 docs/REQUIREMENTS.md
