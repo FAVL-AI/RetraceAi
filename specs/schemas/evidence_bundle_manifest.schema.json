@@ -1,0 +1,499 @@
+{
+  "$defs": {
+    "Attestation": {
+      "additionalProperties": false,
+      "description": "Who stands behind this bundle, and what they are not claiming (RX-15, RX-54).\n\n``non_certification_statement`` is required and non-empty. A readiness\nartefact that does not say it is readiness rather than certification invites\nexactly the misreading RX-54 exists to prevent.\n\nA half-signed attestation is refused: ``signature`` and\n``signature_algorithm`` must be supplied together, so a signature whose\nalgorithm is unknown cannot be presented as verified.",
+      "properties": {
+        "attested_at": {
+          "description": "When the attestation was made.",
+          "format": "date-time",
+          "title": "Attested At",
+          "type": "string"
+        },
+        "attested_by": {
+          "description": "Identity making the attestation.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Attested By",
+          "type": "string"
+        },
+        "method": {
+          "default": "unsigned-declaration",
+          "description": "How the attestation is made, e.g. 'unsigned-declaration'.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "non_certification_statement": {
+          "description": "Explicit statement that this is readiness evidence, not certification.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Non Certification Statement",
+          "type": "string"
+        },
+        "signature": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Detached signature, when one exists.",
+          "title": "Signature"
+        },
+        "signature_algorithm": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Algorithm of the signature, required when signed.",
+          "title": "Signature Algorithm"
+        },
+        "statement": {
+          "description": "What is being attested, explicitly.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attested_by",
+        "attested_at",
+        "statement",
+        "non_certification_statement"
+      ],
+      "title": "Attestation",
+      "type": "object"
+    },
+    "CheckResult": {
+      "additionalProperties": false,
+      "description": "The result of one declared check (RX-12, RX-13, RX-17).\n\n``expected`` and ``observed`` are strings on purpose: a check result is an\nevidence record, and rendering the compared values as text keeps the record\nreadable and diffable without committing the verifier to one numeric\nrepresentation. The numeric difference, when one exists, is carried\nseparately in ``abs_diff`` / ``rel_diff``.\n\n``unit_expected`` / ``unit_observed`` exist so a unit disagreement is\nreported as a unit disagreement (RX-13) rather than silently converted or\nburied in a value string.",
+      "properties": {
+        "abs_diff": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absolute difference, when numerically comparable.",
+          "title": "Abs Diff"
+        },
+        "check_id": {
+          "description": "Id of the check, matching a contract required_check.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+          "title": "Check Id",
+          "type": "string"
+        },
+        "details": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Additional diagnostic key/value detail.",
+          "title": "Details",
+          "type": "object"
+        },
+        "expected": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reference value as text.",
+          "title": "Expected"
+        },
+        "observed": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Recomputed value as text.",
+          "title": "Observed"
+        },
+        "output_name": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Contract output this check concerns, when applicable.",
+          "title": "Output Name"
+        },
+        "rel_diff": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Relative difference, when numerically comparable.",
+          "title": "Rel Diff"
+        },
+        "status": {
+          "$ref": "#/$defs/CheckStatus",
+          "description": "Outcome of this check. BLOCKED is not FAILED."
+        },
+        "summary": {
+          "description": "One-line human-readable result.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        },
+        "unit_expected": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reference unit (RX-13).",
+          "title": "Unit Expected"
+        },
+        "unit_observed": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Observed unit (RX-13).",
+          "title": "Unit Observed"
+        }
+      },
+      "required": [
+        "check_id",
+        "status",
+        "summary"
+      ],
+      "title": "CheckResult",
+      "type": "object"
+    },
+    "CheckStatus": {
+      "description": "Outcome of a single declared check (RX-12, RX-17).\n\n``BLOCKED`` is distinct from ``FAILED``: a check whose reference evidence is\nabsent has not failed, it could not be evaluated, and it must not be\nreported as either a pass or a numeric disagreement.",
+      "enum": [
+        "PASSED",
+        "FAILED",
+        "ERRORED",
+        "SKIPPED",
+        "BLOCKED"
+      ],
+      "title": "CheckStatus",
+      "type": "string"
+    },
+    "EnvironmentManifest": {
+      "additionalProperties": false,
+      "description": "The environment a run was executed in (RX-15, RX-16).\n\n``policy_digest`` is the digest of the execution policy -- network denial,\nwall-clock and memory ceilings, scratch-only write root (RX-08). The policy\nitself is the runner's record; the manifest pins its digest so a second\nresearcher can prove they re-ran under the same envelope.",
+      "properties": {
+        "captured_at": {
+          "description": "When the environment was captured.",
+          "format": "date-time",
+          "title": "Captured At",
+          "type": "string"
+        },
+        "image_digest": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Container image digest, when a container was used.",
+          "title": "Image Digest"
+        },
+        "packages": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Installed package name -> exact version.",
+          "title": "Packages",
+          "type": "object"
+        },
+        "platform": {
+          "description": "Platform/OS identification string.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Platform",
+          "type": "string"
+        },
+        "policy_digest": {
+          "description": "Digest of the execution policy applied (RX-08).",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Policy Digest",
+          "type": "string"
+        },
+        "python_version": {
+          "description": "Interpreter version string.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Python Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "python_version",
+        "platform",
+        "policy_digest",
+        "captured_at"
+      ],
+      "title": "EnvironmentManifest",
+      "type": "object"
+    },
+    "ResourceRef": {
+      "additionalProperties": false,
+      "description": "A reference to one file inside the bundle, pinned by digest (RX-15, RX-01).\n\n``path`` is bundle-relative and traversal-free, so importing a bundle cannot\nbe made to write outside its own extraction root (RX-42).",
+      "properties": {
+        "bytes_count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Size in bytes, when recorded.",
+          "title": "Bytes Count"
+        },
+        "media_type": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "IANA media type, if known.",
+          "title": "Media Type"
+        },
+        "path": {
+          "description": "Bundle-relative path to the file.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "ref_id": {
+          "description": "Id unique within the bundle manifest.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+          "title": "Ref Id",
+          "type": "string"
+        },
+        "role": {
+          "description": "Role of this file, e.g. 'snapshot' or 'runner-log'.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Role",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "SHA-256 of the referenced bytes.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref_id",
+        "path",
+        "sha256",
+        "role"
+      ],
+      "title": "ResourceRef",
+      "type": "object"
+    },
+    "VerificationOutcome": {
+      "description": "The complete, closed set of verification outcomes (RX-12).\n\nExactly five members. ``Enum`` forbids subclassing a type that already has\nmembers, so a sixth value is not representable without editing this file --\nwhich is the property RX-12 asks for and which\n``tests/contracts/test_enums.py`` asserts directly.\n\nMembers\n-------\nREPRODUCED_WITHIN_CONTRACT:\n    Independently recomputed and inside every declared tolerance, with no\n    methodology delta. The only outcome that may be read as a pass.\nEXECUTED_NOT_VERIFIED:\n    The run completed but verification could not be concluded -- checks were\n    skipped or errored, or the evidence recomputed was insufficient.\nCHANGED_RESULT:\n    The run completed and the result differs from the reference, either\n    numerically beyond tolerance, by unit mismatch (RX-13), or by changed\n    methodology (RX-14).\nBLOCKED_MISSING_EVIDENCE:\n    Required evidence was absent, so the verifier abstains (RX-17). Never\n    an inferred pass.\nFAILED_EXECUTION:\n    The run itself did not complete (non-zero exit, timeout, or kill).",
+      "enum": [
+        "REPRODUCED_WITHIN_CONTRACT",
+        "EXECUTED_NOT_VERIFIED",
+        "CHANGED_RESULT",
+        "BLOCKED_MISSING_EVIDENCE",
+        "FAILED_EXECUTION"
+      ],
+      "title": "VerificationOutcome",
+      "type": "string"
+    }
+  },
+  "$id": "urn:retrace:schema:evidence_bundle_manifest:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The RO-Crate-shaped portable handover descriptor (RX-15, RX-16).\n\nInvariants enforced at construction:\n\n* ``limitations`` is non-empty (RX-15 requires a non-empty limitations\n  section; a bundle that claims no limitations is not reviewable).\n* every ``ref_id`` is unique across the snapshot, patch and log references,\n  and every referenced ``path`` is unique.\n* ``check_results`` have unique check ids.\n* when ``outcome`` is ``REPRODUCED_WITHIN_CONTRACT`` there is at least one\n  check result, because a bundle whose headline is a reproduction must carry\n  the evidence of it.",
+  "properties": {
+    "attestation": {
+      "$ref": "#/$defs/Attestation",
+      "description": "Who stands behind the bundle (RX-54)."
+    },
+    "bundle_id": {
+      "description": "Stable id of this bundle.",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+      "title": "Bundle Id",
+      "type": "string"
+    },
+    "bundle_version": {
+      "default": 1,
+      "description": "Manifest version.",
+      "minimum": 1,
+      "title": "Bundle Version",
+      "type": "integer"
+    },
+    "check_results": {
+      "default": [],
+      "description": "The numerical and structural checks performed.",
+      "items": {
+        "$ref": "#/$defs/CheckResult"
+      },
+      "title": "Check Results",
+      "type": "array"
+    },
+    "conforms_to": {
+      "default": "https://w3id.org/ro/crate/1.1",
+      "description": "Profile the producer declares conformance to. Not validated here.",
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Conforms To",
+      "type": "string"
+    },
+    "contract_hash": {
+      "description": "Hash of the contract the bundled work was judged against (RX-03).",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Contract Hash",
+      "type": "string"
+    },
+    "created_at": {
+      "description": "When the bundle was assembled.",
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "created_by": {
+      "description": "Identity that assembled the bundle.",
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Created By",
+      "type": "string"
+    },
+    "environment_manifest": {
+      "$ref": "#/$defs/EnvironmentManifest",
+      "description": "The environment the run executed in (RX-08)."
+    },
+    "limitations": {
+      "description": "What this bundle does not establish. Must be non-empty.",
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Limitations",
+      "type": "array"
+    },
+    "logs_refs": {
+      "default": [],
+      "description": "Runner and verifier logs.",
+      "items": {
+        "$ref": "#/$defs/ResourceRef"
+      },
+      "title": "Logs Refs",
+      "type": "array"
+    },
+    "outcome": {
+      "$ref": "#/$defs/VerificationOutcome",
+      "description": "The verification outcome this bundle carries (RX-12)."
+    },
+    "patch_ref": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ResourceRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The reviewed patch, when a repair was proposed (RX-06)."
+    },
+    "snapshot_ref": {
+      "$ref": "#/$defs/ResourceRef",
+      "description": "The immutable input snapshot (RX-01)."
+    }
+  },
+  "required": [
+    "bundle_id",
+    "created_at",
+    "created_by",
+    "contract_hash",
+    "snapshot_ref",
+    "environment_manifest",
+    "outcome",
+    "limitations",
+    "attestation"
+  ],
+  "title": "EvidenceBundleManifest",
+  "type": "object",
+  "x-retrace-generated-by": "retrace_contracts.export_schemas",
+  "x-retrace-requirement": "RX-15",
+  "x-retrace-source-model": "retrace_contracts.evidence_bundle.EvidenceBundleManifest"
+}

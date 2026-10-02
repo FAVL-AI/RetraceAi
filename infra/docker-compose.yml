@@ -1,0 +1,22 @@
+# Local DEVELOPMENT only. Not a hosted-execution or multi-tenant deployment target.
+# A container is not evidence of a safe boundary for untrusted scientific code
+# (see services/runner isolation limits).
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: retrace
+      POSTGRES_USER: retrace_app          # NOT owner/superuser in production; see RX-47
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    ports: ["127.0.0.1:5433:5432"]        # loopback only
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retrace_app -d retrace"]
+      interval: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:6380:6379"]        # cache/dispatch/rate-limit only - never sole evidence store
+volumes:
+  pgdata:

@@ -1,0 +1,50 @@
+[project]
+name = "retrace"
+version = "0.0.0"
+description = "RETRACE AI - scientific workflow repair and verification workbench"
+authors = [{ name = "Frank Asante Van Laarhoven", email = "frankleroyvan@gmail.com" }]
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.9",
+  "fastapi>=0.115",
+  "uvicorn>=0.32",
+  "sqlalchemy>=2.0",
+  "alembic>=1.14",
+  "nbformat>=5.10",
+  "nbclient>=0.10",
+  "jsonschema>=4.23",
+  "python-multipart>=0.0.18",
+  "ipykernel>=6.29",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-cov>=6.0", "ruff>=0.8", "mypy>=1.13", "httpx>=0.28"]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+# Multi-root monorepo: each source root is searched. Verified by the clean-install
+# smoke test in docs/evidence/PACKAGING.md - a build that ships 0 modules is a FAILURE.
+where = ["packages/contracts", "packages/domain", "packages/i18n",
+         "services/api", "services/runner", "services/verifier"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["packages/contracts", "packages/domain", "packages/i18n", "services/api", "services/runner", "services/verifier"]
+addopts = "-q --strict-markers"
+markers = ["integration: requires containers", "slow: long running"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "S", "UP"]
+ignore = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+warn_unused_ignores = true

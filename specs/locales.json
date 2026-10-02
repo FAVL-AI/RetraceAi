@@ -1,0 +1,527 @@
+{
+  "$comment": "RECONSTRUCTED in this build from the blueprint's enumerated 36 languages. The packaged specs/locales.json was absent (PRECHECK B1). Plural categories follow CLDR cardinal rules; ICU at runtime is the authority. review_status 'beta' means NO human linguistic review has occurred - required by RX-30 before a locale may be called complete.",
+  "source_locale": "en",
+  "count": 36,
+  "rtl_note": "The blueprint named Arabic, Hebrew and Persian as RTL. Urdu is also RTL (Arabic script) and is marked rtl here - a correction to the pasted spec, flagged in docs/evidence/SPEC_DEVIATIONS.md.",
+  "locales": [
+    {
+      "code": "en",
+      "name": "English",
+      "endonym": "English",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "source",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "nl",
+      "name": "Dutch",
+      "endonym": "Nederlands",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "fr",
+      "name": "French",
+      "endonym": "Français",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "de",
+      "name": "German",
+      "endonym": "Deutsch",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "es",
+      "name": "Spanish",
+      "endonym": "Español",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "it",
+      "name": "Italian",
+      "endonym": "Italiano",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "pt",
+      "name": "Portuguese",
+      "endonym": "Português",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "sv",
+      "name": "Swedish",
+      "endonym": "Svenska",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "da",
+      "name": "Danish",
+      "endonym": "Dansk",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "nb",
+      "name": "Norwegian Bokmål",
+      "endonym": "Norsk bokmål",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "fi",
+      "name": "Finnish",
+      "endonym": "Suomi",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "pl",
+      "name": "Polish",
+      "endonym": "Polski",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "cs",
+      "name": "Czech",
+      "endonym": "Čeština",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "sk",
+      "name": "Slovak",
+      "endonym": "Slovenčina",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "ro",
+      "name": "Romanian",
+      "endonym": "Română",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "few",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "hu",
+      "name": "Hungarian",
+      "endonym": "Magyar",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "el",
+      "name": "Greek",
+      "endonym": "Ελληνικά",
+      "script": "Grek",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "tr",
+      "name": "Turkish",
+      "endonym": "Türkçe",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "uk",
+      "name": "Ukrainian",
+      "endonym": "Українська",
+      "script": "Cyrl",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "ru",
+      "name": "Russian",
+      "endonym": "Русский",
+      "script": "Cyrl",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "few",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "ar",
+      "name": "Arabic",
+      "endonym": "العربية",
+      "script": "Arab",
+      "direction": "rtl",
+      "plural_categories": [
+        "zero",
+        "one",
+        "two",
+        "few",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "he",
+      "name": "Hebrew",
+      "endonym": "עברית",
+      "script": "Hebr",
+      "direction": "rtl",
+      "plural_categories": [
+        "one",
+        "two",
+        "many",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "fa",
+      "name": "Persian",
+      "endonym": "فارسی",
+      "script": "Arab",
+      "direction": "rtl",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "hi",
+      "name": "Hindi",
+      "endonym": "हिन्दी",
+      "script": "Deva",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "bn",
+      "name": "Bengali",
+      "endonym": "বাংলা",
+      "script": "Beng",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "ur",
+      "name": "Urdu",
+      "endonym": "اردو",
+      "script": "Arab",
+      "direction": "rtl",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "ta",
+      "name": "Tamil",
+      "endonym": "தமிழ்",
+      "script": "Taml",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "te",
+      "name": "Telugu",
+      "endonym": "తెలుగు",
+      "script": "Telu",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "zh-Hans",
+      "name": "Chinese (Simplified)",
+      "endonym": "简体中文",
+      "script": "Hans",
+      "direction": "ltr",
+      "plural_categories": [
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "ja",
+      "name": "Japanese",
+      "endonym": "日本語",
+      "script": "Jpan",
+      "direction": "ltr",
+      "plural_categories": [
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "ko",
+      "name": "Korean",
+      "endonym": "한국어",
+      "script": "Kore",
+      "direction": "ltr",
+      "plural_categories": [
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "vi",
+      "name": "Vietnamese",
+      "endonym": "Tiếng Việt",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "th",
+      "name": "Thai",
+      "endonym": "ไทย",
+      "script": "Thai",
+      "direction": "ltr",
+      "plural_categories": [
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "id",
+      "name": "Indonesian",
+      "endonym": "Bahasa Indonesia",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "sw",
+      "name": "Swahili",
+      "endonym": "Kiswahili",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    },
+    {
+      "code": "ak",
+      "name": "Akan",
+      "endonym": "Akan",
+      "script": "Latn",
+      "direction": "ltr",
+      "plural_categories": [
+        "one",
+        "other"
+      ],
+      "review_status": "beta",
+      "reviewer": null,
+      "reviewed_at": null
+    }
+  ]
+}

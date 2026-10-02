@@ -1,0 +1,78 @@
+{
+  "$id": "urn:retrace:schema:repair_proposal:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A reviewable patch against a named snapshot (RX-06, RX-56).\n\nInvariants enforced at construction, each with a negative control in\n``tests/contracts/test_repair_proposal.py``:\n\n* ``unified_diff`` contains at least one ``@@`` hunk header and at least one\n  ``---``/``+++`` header pair. Raw file content is refused.\n* every path the diff names equals ``target_path``.\n* ``target_path`` is snapshot-relative and traversal-free.\n* ``injected`` is ``False`` unless explicitly declared.\n\nThe proposal carries ``candidate_hash``, the digest an approval binds\n(RX-05). This layer does not compute it from the diff: the candidate's\nidentity is whatever the producing worker digested, and inventing it here\nwould hide a producer bug.",
+  "properties": {
+    "candidate_hash": {
+      "description": "Digest of the candidate this proposal represents (RX-05).",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Candidate Hash",
+      "type": "string"
+    },
+    "injected": {
+      "default": false,
+      "description": "True only for a fault this repository authored for its own fixtures (RX-56). Never inferred; an injected fault must declare itself.",
+      "title": "Injected",
+      "type": "boolean"
+    },
+    "proposal_id": {
+      "description": "Stable id of this proposal.",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+      "title": "Proposal Id",
+      "type": "string"
+    },
+    "provider": {
+      "description": "Id of the provider that produced the proposal, e.g. 'deterministic-local' or a configured model provider (RX-33).",
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Provider",
+      "type": "string"
+    },
+    "rationale": {
+      "description": "Why this change is proposed, in the proposer's own words.",
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "snapshot_id": {
+      "description": "Id of the immutable snapshot this patch applies against (RX-01).",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "target_path": {
+      "description": "Snapshot-relative path the diff modifies. Exactly one file per proposal.",
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Target Path",
+      "type": "string"
+    },
+    "unified_diff": {
+      "description": "The patch itself, in unified diff format. Never file content.",
+      "maxLength": 1048576,
+      "minLength": 1,
+      "title": "Unified Diff",
+      "type": "string"
+    }
+  },
+  "required": [
+    "proposal_id",
+    "snapshot_id",
+    "target_path",
+    "unified_diff",
+    "candidate_hash",
+    "rationale",
+    "provider"
+  ],
+  "title": "RepairProposal",
+  "type": "object",
+  "x-retrace-generated-by": "retrace_contracts.export_schemas",
+  "x-retrace-requirement": "RX-06",
+  "x-retrace-source-model": "retrace_contracts.repair.RepairProposal"
+}

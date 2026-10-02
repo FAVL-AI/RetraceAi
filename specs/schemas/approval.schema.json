@@ -1,0 +1,76 @@
+{
+  "$id": "urn:retrace:schema:approval:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A human approval binding five pieces of evidence together (RX-05).\n\nThe record is frozen: an approval whose bound fields could be edited after\nthe fact would be an audit record that cannot be audited.\n\n``approved_at`` must be supplied by the caller as a timezone-aware\n``datetime``. This model never reads the clock -- a record that stamps\nitself cannot be reconstructed from evidence or tested deterministically.",
+  "properties": {
+    "action_digest": {
+      "description": "Digest of the action this approval authorises, and no other.",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Action Digest",
+      "type": "string"
+    },
+    "approval_id": {
+      "description": "Stable id of this approval record.",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+      "title": "Approval Id",
+      "type": "string"
+    },
+    "approved_at": {
+      "description": "When the approval was given. Timezone-aware; supplied by the caller.",
+      "format": "date-time",
+      "title": "Approved At",
+      "type": "string"
+    },
+    "approved_by": {
+      "description": "Identity of the approving human.",
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Approved By",
+      "type": "string"
+    },
+    "candidate_hash": {
+      "description": "Hash of the exact repair candidate approved (RX-06).",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Candidate Hash",
+      "type": "string"
+    },
+    "contract_hash": {
+      "description": "Hash of the ResultContract this approval judges (RX-03).",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Contract Hash",
+      "type": "string"
+    },
+    "environment_policy_digest": {
+      "description": "Digest of the execution policy the run must obey (RX-08).",
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Environment Policy Digest",
+      "type": "string"
+    },
+    "input_snapshot_id": {
+      "description": "Id of the immutable input snapshot used (RX-01).",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+      "title": "Input Snapshot Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "approval_id",
+    "contract_hash",
+    "candidate_hash",
+    "input_snapshot_id",
+    "environment_policy_digest",
+    "action_digest",
+    "approved_by",
+    "approved_at"
+  ],
+  "title": "Approval",
+  "type": "object",
+  "x-retrace-generated-by": "retrace_contracts.export_schemas",
+  "x-retrace-requirement": "RX-05",
+  "x-retrace-source-model": "retrace_contracts.approval.Approval"
+}

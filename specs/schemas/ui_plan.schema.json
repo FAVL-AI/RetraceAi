@@ -1,0 +1,208 @@
+{
+  "$defs": {
+    "UIComponent": {
+      "additionalProperties": false,
+      "description": "One node of a declarative layout plan (RX-22).\n\nString fields are bounded but otherwise unconstrained, because this record\nmust be able to *hold* a hostile value so that :func:`validate_ui_plan` can\nrefuse it with a specific reason.",
+      "properties": {
+        "action_id": {
+          "anyOf": [
+            {
+              "maxLength": 65536,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Registered action id this component invokes (RX-22).",
+          "title": "Action Id"
+        },
+        "children": {
+          "default": [],
+          "description": "Nested components.",
+          "items": {
+            "$ref": "#/$defs/UIComponent"
+          },
+          "title": "Children",
+          "type": "array"
+        },
+        "component_id": {
+          "description": "Id unique within the plan.",
+          "maxLength": 65536,
+          "minLength": 1,
+          "title": "Component Id",
+          "type": "string"
+        },
+        "component_type": {
+          "description": "Component type; must appear in the allowlist (RX-22).",
+          "maxLength": 65536,
+          "minLength": 1,
+          "title": "Component Type",
+          "type": "string"
+        },
+        "hidden": {
+          "default": false,
+          "description": "Whether the component is hidden.",
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "props": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Component props. Keys and values are untrusted.",
+          "title": "Props",
+          "type": "object"
+        },
+        "query_id": {
+          "anyOf": [
+            {
+              "maxLength": 65536,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Authorised query id this component reads (RX-22).",
+          "title": "Query Id"
+        },
+        "region_id": {
+          "anyOf": [
+            {
+              "maxLength": 65536,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Layout region this component renders into.",
+          "title": "Region Id"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 65536,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Display title.",
+          "title": "Title"
+        }
+      },
+      "required": [
+        "component_id",
+        "component_type"
+      ],
+      "title": "UIComponent",
+      "type": "object"
+    }
+  },
+  "$id": "urn:retrace:schema:ui_plan:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A declarative, reviewable layout plan (RX-22).\n\n``source_prompt`` records the prompt that produced the plan. It is scanned\nas untrusted input like every other string, so an injection carried in the\nprovenance field is refused rather than stored and later rendered.",
+  "properties": {
+    "components": {
+      "default": [],
+      "description": "Root components of the layout.",
+      "items": {
+        "$ref": "#/$defs/UIComponent"
+      },
+      "title": "Components",
+      "type": "array"
+    },
+    "created_by": {
+      "description": "Identity that requested the plan.",
+      "maxLength": 65536,
+      "minLength": 1,
+      "title": "Created By",
+      "type": "string"
+    },
+    "hidden_region_ids": {
+      "default": [],
+      "description": "Regions the plan explicitly hides.",
+      "items": {
+        "maxLength": 65536,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Hidden Region Ids",
+      "type": "array"
+    },
+    "plan_id": {
+      "description": "Stable id of this plan.",
+      "maxLength": 65536,
+      "minLength": 1,
+      "title": "Plan Id",
+      "type": "string"
+    },
+    "plan_version": {
+      "default": 1,
+      "description": "Plan version.",
+      "minimum": 1,
+      "title": "Plan Version",
+      "type": "integer"
+    },
+    "source_prompt": {
+      "anyOf": [
+        {
+          "maxLength": 65536,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The prompt that generated this plan. Untrusted.",
+      "title": "Source Prompt"
+    },
+    "title": {
+      "description": "Human-readable plan title.",
+      "maxLength": 65536,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "plan_id",
+    "title",
+    "created_by"
+  ],
+  "title": "UIPlan",
+  "type": "object",
+  "x-retrace-generated-by": "retrace_contracts.export_schemas",
+  "x-retrace-requirement": "RX-22",
+  "x-retrace-source-model": "retrace_contracts.ui_plan.UIPlan"
+}

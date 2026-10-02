@@ -1,0 +1,36 @@
+# Per-repo functional-identifier allowlist.
+#
+# Widens what the listed paths may NAME. It does not widen what any file may
+# CLAIM: the anchored attribution scan and the prose-credit scan still apply to
+# every path below, so a co-author trailer, a Generated-By line, an Author:
+# metadata key or a sentence asserting that a vendor authored this work is still
+# refused here exactly as it is everywhere else. Verified by a negative control
+# recorded in docs/evidence/ATTRIBUTION_CONTROL.md.
+#
+# Authorship remains Frank Asante Van Laarhoven alone.
+#
+# WHY THESE PATHS NEED VENDOR NAME STRINGS
+#
+# This repository's subject matter is a workbench whose default generation
+# provider is a specific commercial model API, and whose pre-execution audit is
+# REQUIRED to record the exact toolchain it ran under. The names below are
+# therefore functional identifiers and recorded environment facts:
+#
+#   - the pre-execution audit records the CLI name and version, the model id,
+#     and the list of connected tool servers. A precheck that omits the
+#     toolchain it ran under is not an audit;
+#   - the specification archive's literal filename contains a vendor name, and
+#     the reconciliation record must name the file it could not find;
+#   - a product requirement names the default model provider and the
+#     administrator-approved alternative provider, because provider choice is
+#     the governed decision being specified;
+#   - the deviations log records that a provider interface exists but reports
+#     NEEDS_CONFIGURATION because no credential is provisioned.
+#
+# Each is a statement about what the software talks to or ran on. None credits
+# anybody. Narrowed to evidence records and the requirement matrix; source
+# directories are deliberately not listed.
+
+.attribution-allow
+docs/evidence/*
+docs/REQUIREMENTS.md

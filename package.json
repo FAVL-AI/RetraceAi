@@ -1,0 +1,16 @@
+{
+  "name": "retrace-ai",
+  "private": true,
+  "version": "0.0.0",
+  "description": "RETRACE AI - scientific workflow repair and verification workbench",
+  "author": "Frank Asante Van Laarhoven <frankleroyvan@gmail.com>",
+  "license": "UNLICENSED",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  }
+}

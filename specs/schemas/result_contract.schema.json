@@ -1,0 +1,479 @@
+{
+  "$defs": {
+    "Approval": {
+      "additionalProperties": false,
+      "description": "A human approval binding five pieces of evidence together (RX-05).\n\nThe record is frozen: an approval whose bound fields could be edited after\nthe fact would be an audit record that cannot be audited.\n\n``approved_at`` must be supplied by the caller as a timezone-aware\n``datetime``. This model never reads the clock -- a record that stamps\nitself cannot be reconstructed from evidence or tested deterministically.",
+      "properties": {
+        "action_digest": {
+          "description": "Digest of the action this approval authorises, and no other.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Action Digest",
+          "type": "string"
+        },
+        "approval_id": {
+          "description": "Stable id of this approval record.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+          "title": "Approval Id",
+          "type": "string"
+        },
+        "approved_at": {
+          "description": "When the approval was given. Timezone-aware; supplied by the caller.",
+          "format": "date-time",
+          "title": "Approved At",
+          "type": "string"
+        },
+        "approved_by": {
+          "description": "Identity of the approving human.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Approved By",
+          "type": "string"
+        },
+        "candidate_hash": {
+          "description": "Hash of the exact repair candidate approved (RX-06).",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Candidate Hash",
+          "type": "string"
+        },
+        "contract_hash": {
+          "description": "Hash of the ResultContract this approval judges (RX-03).",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Contract Hash",
+          "type": "string"
+        },
+        "environment_policy_digest": {
+          "description": "Digest of the execution policy the run must obey (RX-08).",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Environment Policy Digest",
+          "type": "string"
+        },
+        "input_snapshot_id": {
+          "description": "Id of the immutable input snapshot used (RX-01).",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+          "title": "Input Snapshot Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "approval_id",
+        "contract_hash",
+        "candidate_hash",
+        "input_snapshot_id",
+        "environment_policy_digest",
+        "action_digest",
+        "approved_by",
+        "approved_at"
+      ],
+      "title": "Approval",
+      "type": "object"
+    },
+    "ComparisonSpec": {
+      "additionalProperties": false,
+      "description": "The comparison algorithm and its per-output tolerances (RX-03, RX-13).",
+      "properties": {
+        "algorithm": {
+          "description": "Named comparison algorithm, e.g. 'elementwise-abs-rel'.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "tolerances": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Tolerance"
+          },
+          "description": "Output name -> tolerance. Keys must name declared outputs.",
+          "title": "Tolerances",
+          "type": "object"
+        }
+      },
+      "required": [
+        "algorithm"
+      ],
+      "title": "ComparisonSpec",
+      "type": "object"
+    },
+    "ExclusionRule": {
+      "additionalProperties": false,
+      "description": "One explicit exclusion rule (RX-03, RX-14).\n\nExclusions are structured rather than free prose so that an altered\nexclusion can be reported as a named methodology delta.",
+      "properties": {
+        "description": {
+          "description": "What is excluded and why.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "expression": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional machine-checkable form of the rule. Not evaluated by this layer.",
+          "title": "Expression"
+        },
+        "rule_id": {
+          "description": "Stable id, unique within the contract.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+          "title": "Rule Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "description"
+      ],
+      "title": "ExclusionRule",
+      "type": "object"
+    },
+    "OutputDefinition": {
+      "additionalProperties": false,
+      "description": "One declared output of the workflow (RX-03, RX-13).\n\n``unit`` is optional only for dimensionless or non-numeric outputs. When it\nis present it must agree with the contract-level ``units`` mapping; a\ncontract that declares two different units for the same output is\nself-contradictory and is refused (see :class:`ResultContract`).",
+      "properties": {
+        "dtype": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Declared data type, e.g. 'float64' or 'int32'.",
+          "title": "Dtype"
+        },
+        "kind": {
+          "$ref": "#/$defs/OutputKind",
+          "description": "Output kind; decides which comparison is admissible."
+        },
+        "name": {
+          "description": "Output name, unique within the contract.",
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Physical unit, or None for a dimensionless or non-numeric output.",
+          "title": "Unit"
+        }
+      },
+      "required": [
+        "name",
+        "kind"
+      ],
+      "title": "OutputDefinition",
+      "type": "object"
+    },
+    "OutputKind": {
+      "description": "What kind of thing a declared contract output is (RX-03, RX-13).\n\nThe kind decides which comparison is admissible. ``SCALAR``, ``VECTOR``,\n``ARRAY`` and ``TABLE`` are numeric and therefore require a declared\ntolerance; ``TEXT``, ``FIGURE`` and ``ARTEFACT`` are not numerically\ncomparable and are compared by exact content digest instead.\n\n``ARTEFACT`` is the deliberate escape hatch for an opaque output. It is\nclosed-set-safe because an artefact carries no tolerance semantics: the\nverifier can only say \"identical bytes\" or \"different bytes\", never\n\"close enough\".",
+      "enum": [
+        "SCALAR",
+        "VECTOR",
+        "ARRAY",
+        "TABLE",
+        "TEXT",
+        "FIGURE",
+        "ARTEFACT"
+      ],
+      "title": "OutputKind",
+      "type": "string"
+    },
+    "Population": {
+      "additionalProperties": false,
+      "description": "The expected population and how it is selected (RX-03, RX-14).\n\n``expected_count`` is the row/record count the contract asserts. A\nreproduction that produces a different count is a changed population, which\nis a methodology delta (RX-14), not a numeric difference.",
+      "properties": {
+        "expected_count": {
+          "description": "Expected number of rows/records.",
+          "minimum": 0,
+          "title": "Expected Count",
+          "type": "integer"
+        },
+        "selection_rule": {
+          "description": "The rule by which records enter the population, stated explicitly.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Selection Rule",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expected_count",
+        "selection_rule"
+      ],
+      "title": "Population",
+      "type": "object"
+    },
+    "ReferenceInput": {
+      "additionalProperties": false,
+      "description": "One reference input pinned by content digest (RX-01, RX-03).\n\n``path`` is snapshot-relative and traversal-free; ``sha256`` pins the exact\nbytes, so \"the contract's reference inputs\" is a verifiable statement rather\nthan a filename convention.",
+      "properties": {
+        "path": {
+          "description": "Snapshot-relative path to the reference input.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Path",
+          "type": "string"
+        },
+        "role": {
+          "description": "Why this input is referenced, e.g. 'raw-measurements' or 'reference-output'.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Role",
+          "type": "string"
+        },
+        "sha256": {
+          "description": "SHA-256 of the exact reference bytes.",
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "role"
+      ],
+      "title": "ReferenceInput",
+      "type": "object"
+    },
+    "SplitSpec": {
+      "additionalProperties": false,
+      "description": "A declared train/evaluation split (RX-03, RX-14).\n\n``train_fraction`` is strictly between 0 and 1: a 'split' that assigns\neverything to one side is not a split, and silently accepting 0.0 or 1.0\nwould let a contract declare a split it does not perform.",
+      "properties": {
+        "seed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Split seed, or None if not seeded.",
+          "title": "Seed"
+        },
+        "strategy": {
+          "description": "Split strategy, e.g. 'stratified-by-species'.",
+          "maxLength": 4096,
+          "minLength": 1,
+          "title": "Strategy",
+          "type": "string"
+        },
+        "train_fraction": {
+          "description": "Fraction assigned to train; 0 < f < 1.",
+          "exclusiveMaximum": 1.0,
+          "exclusiveMinimum": 0.0,
+          "title": "Train Fraction",
+          "type": "number"
+        }
+      },
+      "required": [
+        "strategy",
+        "train_fraction"
+      ],
+      "title": "SplitSpec",
+      "type": "object"
+    },
+    "Tolerance": {
+      "additionalProperties": false,
+      "description": "Per-output comparison tolerance (RX-03, RX-13).\n\nAt least one of ``abs_tol`` / ``rel_tol`` must be declared. A tolerance\nrecord with neither would mean \"compare to no stated precision\", which is\nnot a comparison, so it is refused. Non-finite and negative tolerances are\nrefused for the same reason: a tolerance of ``inf`` accepts everything.",
+      "properties": {
+        "abs_tol": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absolute tolerance; finite and non-negative.",
+          "title": "Abs Tol"
+        },
+        "rel_tol": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Relative tolerance; finite and non-negative.",
+          "title": "Rel Tol"
+        }
+      },
+      "title": "Tolerance",
+      "type": "object"
+    }
+  },
+  "$id": "urn:retrace:schema:result_contract:1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A versioned, hashed scientific declaration (RX-03, RX-04).\n\nInvariants enforced at construction, each with a negative control in\n``tests/contracts/test_result_contract.py``:\n\n* ``known_limits`` is non-empty. A contract that states no limits is not\n  acceptable: it claims the declaration has no boundary, which is never\n  true of a real scientific result.\n* ``output_definitions`` is non-empty. There is nothing to reproduce\n  otherwise.\n* output names, reference paths, exclusion ids and required check ids are\n  each unique.\n* every key of ``units`` and of ``comparison.tolerances`` names a declared\n  output -- a tolerance for an output that does not exist is dead\n  declaration that reads as coverage.\n* ``units[name]`` agrees with that output's own ``unit`` when both are\n  given (RX-13: unit mismatch is a failure, never a conversion).\n* every numeric output has a declared tolerance; without one the verifier\n  has no admissible comparison and would have to invent a threshold.\n\nImmutability: sequence fields are ``tuple`` so they cannot be appended to\nafter construction. ``units`` and ``comparison.tolerances`` are ``dict``\nbecause RX-03 specifies a mapping, and pydantic cannot freeze a dict in\nplace -- see :attr:`KNOWN_SHAPE_LIMITS`.",
+  "properties": {
+    "approval": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Approval"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Approval linkage (RX-04/RX-05). Excluded from contract_hash because an approval binds to that hash and cannot be inside it."
+    },
+    "comparison": {
+      "$ref": "#/$defs/ComparisonSpec",
+      "description": "Comparison algorithm and tolerances."
+    },
+    "contract_version": {
+      "description": "Monotonic contract version.",
+      "minimum": 1,
+      "title": "Contract Version",
+      "type": "integer"
+    },
+    "created_by": {
+      "description": "Identity of the contract author.",
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Created By",
+      "type": "string"
+    },
+    "exclusions": {
+      "default": [],
+      "description": "Explicit exclusion rules (RX-14).",
+      "items": {
+        "$ref": "#/$defs/ExclusionRule"
+      },
+      "title": "Exclusions",
+      "type": "array"
+    },
+    "known_limits": {
+      "description": "What this contract does NOT establish. Must be non-empty.",
+      "items": {
+        "maxLength": 4096,
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Known Limits",
+      "type": "array"
+    },
+    "output_definitions": {
+      "description": "The outputs this contract judges.",
+      "items": {
+        "$ref": "#/$defs/OutputDefinition"
+      },
+      "minItems": 1,
+      "title": "Output Definitions",
+      "type": "array"
+    },
+    "population": {
+      "$ref": "#/$defs/Population",
+      "description": "Expected record count and selection rule."
+    },
+    "reference_inputs": {
+      "default": [],
+      "description": "Inputs that count as reference, pinned by digest (RX-01).",
+      "items": {
+        "$ref": "#/$defs/ReferenceInput"
+      },
+      "title": "Reference Inputs",
+      "type": "array"
+    },
+    "required_checks": {
+      "default": [],
+      "description": "Ids of the checks a verification must run.",
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
+        "type": "string"
+      },
+      "title": "Required Checks",
+      "type": "array"
+    },
+    "seed": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Seed, or None when none is declared.",
+      "title": "Seed"
+    },
+    "split": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SplitSpec"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Declared split, or None."
+    },
+    "units": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Output name -> unit. Keys must name declared outputs.",
+      "title": "Units",
+      "type": "object"
+    }
+  },
+  "required": [
+    "output_definitions",
+    "population",
+    "comparison",
+    "known_limits",
+    "contract_version",
+    "created_by"
+  ],
+  "title": "ResultContract",
+  "type": "object",
+  "x-retrace-generated-by": "retrace_contracts.export_schemas",
+  "x-retrace-requirement": "RX-03",
+  "x-retrace-source-model": "retrace_contracts.result_contract.ResultContract"
+}
