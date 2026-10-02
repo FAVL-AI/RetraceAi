@@ -16,6 +16,13 @@ Interpreter: `.venv/bin/python` 3.13.13. Tested tree: `build/retrace-t0-t2`, unc
 | 4 | `pytest tests/contracts` (`PYTHONPATH` cleared) | 93 | 93 | 0 | 0 | 2026-10-02 |
 | 5 | `pytest tests/contracts` (worker added 2 more files) | 146 | 145 | **1** | 1 | 2026-10-02 |
 | 6 | clean-env wheel install smoke test, outside repo | 1 | 1 | 0 | 0 | 2026-10-02 |
+| 7 | `pytest tests/contracts` after schema regeneration | 417 | 416 | 0 (1 skip) | 0 | 2026-10-02 |
+| 8 | `pytest tests/postgres -m integration` (first attempt) | 11 | 4 | **7** | 1 | 2026-10-02 |
+| 9 | `pytest tests/postgres -m integration` (after two DDL/test fixes) | 11 | **11** | 0 | **0** | 2026-10-02 |
+| 10 | `scripts/test.sh` — whole suite, integration included | 501 | **500** | 0 (1 skip) | **0** | 2026-10-02 |
+
+Run 10 breakdown: 416 contracts + 73 governance + 11 PostgreSQL integration.
+`ruff check` clean across all committed paths; `mypy` clean across 13 contract modules.
 
 Run 1's three "failures" were **defects in my probe, not the implementation**: in all
 three cases the code was *stricter* than the probe assumed — it rejects `units` naming
@@ -40,7 +47,14 @@ assertion on the error *text*. Root cause is a genuine defect underneath it (F1)
 
 ## Findings
 
-### F1 — unit conflation makes a validator unreachable (real defect, open)
+### F1 — unit conflation makes a validator unreachable (real defect, **FIXED**)
+
+**Resolved.** `unified_diff` is now typed `DiffText`
+(`max_length=4_194_304`, deliberately well above `MAX_DIFF_BYTES`) so the
+byte-length validator is the single size authority and its message is reachable.
+`test_oversize_diff_is_refused` passes. Original analysis retained below.
+
+
 
 `packages/contracts/retrace_contracts/base.py:53`
 ```python
@@ -97,17 +111,65 @@ success. Fixed via multi-root `packages.find.where`; wheel now ships 13 modules 
 clean-env install outside the repo passes, including rejecting an altered candidate hash.
 A regression test is owed (listed in PACKAGING.md) and does not yet exist.
 
+### F4 — `Author:` metadata key is refused by shape, even with Frank's name (process, fixed)
+
+The machine-wide commit guard refuses `Author:`/`Contributors:`-shaped metadata
+*by shape*, correctly — authorship is carried by git identity, never a text
+header. My worker brief said "author is Frank Asante Van Laarhoven only", which
+caused 38 `Author:` lines across generated modules and blocked the commit. All
+removed; the phase-2 brief now forbids the construct explicitly, and
+`tests/governance` fails on it so it cannot return.
+
+### F5 — service role was SUPERUSER, silently bypassing RLS (real defect, fixed + verified)
+
+The postgres image makes `POSTGRES_USER` a **superuser with BYPASSRLS**. A
+superuser is not subject to row-level security, so had the application used that
+role every policy would have been decorative — and an isolation test run as that
+role would have proven nothing. Added `retrace_svc`
+(`NOSUPERUSER NOBYPASSRLS`, owns no tables, cannot `CREATE`), plus
+`FORCE ROW LEVEL SECURITY` because `ENABLE` alone exempts a table's owner.
+
+### F6 — `nullif()` is load-bearing in the RLS policy (real defect, fixed + verified)
+
+A setting established with `set_config(..., is_local => true)` does **not** revert
+to `NULL` at transaction end — it reverts to the **empty string**. The policy then
+evaluated `''::uuid` and raised `invalid_text_representation` on the next
+statement of a pooled connection, instead of cleanly matching no rows. Data was
+still denied, so this was not a leak, but an ordinary pooled-connection code path
+errored. **SQLite cannot exhibit this**; it was visible only because the test runs
+against real PostgreSQL. Fixed with
+`nullif(current_setting('retrace.tenant_id', true), '')::uuid`.
+
+### F7 — my own test used `SET LOCAL` with a bind parameter (test defect, fixed)
+
+PostgreSQL's `SET LOCAL` does not accept bind parameters. Replaced with
+`select set_config('retrace.tenant_id', %s, true)`, which is parameterizable and
+transaction-scoped. Caused 7 of the 7 errors in run 8.
+
 ## Gates
 
 | Gate | Status |
 |---|---|
-| Specification reconciliation | **BLOCKED** — archive not on this host (`SPEC_RECONCILIATION.md`) |
-| Installed-package correctness | **PASS for `retrace_contracts`**; `NOT_RUN` for the five packages that do not exist yet; service start-up `NOT_RUN` |
-| Contract conformance tests | **PARTIAL** — 145/146 pass, 1 open failure (F1). Python side only; no TypeScript representation exists, so no cross-representation conformance check exists |
-| Scientific workflow (valid / result-changing / missing-evidence) | **NOT_RUN** — runner, verifier and domain layers not yet written |
+| Specification reconciliation | **BLOCKED** — archive not on this host; `/mnt/data` does not exist here (`SPEC_RECONCILIATION.md`). 32 originals unmapped, 57 RX entries unclassified |
+| Installed-package correctness | **PASS for `retrace_contracts`** — wheel ships 13 modules, installed into a clean venv, imported from `site-packages` from `/tmp` with `PYTHONPATH` cleared and no repo path on `sys.path`, and the installed artefact still invalidates all five bound approval fields. `NOT_RUN` for the five packages that do not exist yet. **Service start-up `NOT_RUN`** — no service exists. No regression test yet guards the empty-wheel defect |
+| Contract conformance tests | **PASS (Python)** — 416 passed, 1 skipped, 0 failed; schemas generated from the models with a sync test that caught real drift. **GAP:** no TypeScript representation exists, so the cross-representation conformance check the directive requires does not exist yet |
+| Scientific workflow (valid / result-changing / missing-evidence) | **NOT_RUN** — domain, runner and verifier are being written now. Nothing executed, nothing claimed |
 | Browser integration | **NOT_RUN** — no web app exists |
 
 ## PostgreSQL
 
-`NOT_RUN`. No PostgreSQL instance has been started; no RLS, migration or concurrency
-test has executed. SQLite evidence will not be substituted for PostgreSQL behaviour.
+**EXECUTED.** PostgreSQL 17.11, disposable container, loopback-only on a port chosen
+to avoid an unrelated project's container. 11 proofs pass, and **every isolation
+claim is paired with a discrimination control**: a `BYPASSRLS` role reads the same
+rows and confirms they exist, so an empty result cannot be mistaken for an empty
+table. Covered: role is neither superuser nor BYPASSRLS; owns no tables; RLS
+enabled *and forced*; tenant sees only its own rows; cross-tenant read by explicit
+id returns nothing; unset identity returns nothing (fails closed); identity does not
+leak into the next transaction on the same connection; `WITH CHECK` refuses writing
+another tenant's row; composite `(tenant_id, id)` FK refuses a cross-tenant
+reference; the service role cannot create tables.
+
+Not covered: migration/restore, concurrency under load, pgvector, and RLS on tables
+that do not exist yet. Alembic migrations are **not written** — the DDL is currently
+a plain SQL file applied by hand, which is adequate for a proof and not adequate for
+a release.
