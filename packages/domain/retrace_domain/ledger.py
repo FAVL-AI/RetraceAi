@@ -53,9 +53,11 @@ from retrace_contracts import (
     Approval,
     ApprovalInvalidated,
     ContractNotApproved,
+    ContractStatus,
     FrozenRecord,
     Identifier,
     NonEmptyStr,
+    ResultContract,
     Sha256Hex,
 )
 
@@ -457,6 +459,84 @@ class ApprovalLedger:
         if not matches:
             raise ContractNotApproved(contract_hash=contract_hash)
         return matches[-1]
+
+    def verify_contract_approval(self, contract: ResultContract) -> LedgerEntry:
+        """Check a contract's own approval claim against the ledger (RX-04, RX-05).
+
+        RESTORES A GUARD THE SCHEMA RECONCILIATION REMOVED. ``approval_ref`` used
+        to be an embedded :class:`~retrace_contracts.Approval`, and the contracts
+        layer refused one whose hash did not match the contract it sat inside.
+        Reconciling to the original schema made it a bare string reference, and
+        that layer performs no I/O, so it can no longer tell whether the reference
+        points at an approval for *this* declaration or for different material.
+        That check belongs where the ledger is, which is here.
+
+        Four things are checked, in order, because each later one is meaningless
+        without the earlier:
+
+        1. the contract claims APPROVED status at all;
+        2. it carries a reference;
+        3. that reference resolves to an active, non-superseded contract approval;
+        4. the resolved approval was granted against THIS declaration.
+
+        Step 4 is the one that matters. A client-supplied ``status`` of
+        ``APPROVED`` and a syntactically valid ``approval_ref`` establish nothing:
+        the ledger is the authority, and this is where the claim meets it.
+
+        Approvals bind :attr:`ResultContract.declaration_digest`, not
+        ``contract_hash``, so that marking a contract APPROVED does not invalidate
+        the approval it records.
+
+        Raises
+        ------
+        ContractNotApproved:
+            Status is not APPROVED, no reference is present, or the reference
+            resolves to nothing active.
+        ApprovalInvalidated:
+            The reference resolves, but to an approval granted against a
+            different declaration.
+        LedgerIntegrityError:
+            If the chain does not verify.
+        """
+        if contract.status is not ContractStatus.APPROVED:
+            raise ContractNotApproved(
+                f"contract status is {contract.status.value}, not APPROVED; a contract "
+                "is approved by the ledger, never by its own status field",
+                contract_hash=contract.declaration_digest,
+            )
+        reference = (contract.approval_ref or "").strip()
+        if not reference:
+            raise ContractNotApproved(
+                "contract claims APPROVED status but carries no approval_ref, so there "
+                "is nothing to check against the ledger",
+                contract_hash=contract.declaration_digest,
+            )
+        self.verify_chain()
+        entries = self.entries()
+        superseded = self._superseded_ids(entries)
+        resolved = [
+            entry
+            for entry in entries
+            if entry.entry_type is LedgerEntryType.CONTRACT_APPROVAL
+            and entry.approval_id == reference
+            and entry.entry_id not in superseded
+        ]
+        if not resolved:
+            raise ContractNotApproved(
+                f"approval_ref {reference!r} resolves to no active contract approval; a "
+                "reference that points at nothing, or at a superseded entry, is not an "
+                "approval",
+                contract_hash=contract.declaration_digest,
+            )
+        entry = resolved[-1]
+        if entry.contract_hash != contract.declaration_digest:
+            raise ApprovalInvalidated(
+                f"approval {reference!r} was granted against declaration "
+                f"{entry.contract_hash}, but this contract's declaration is "
+                f"{contract.declaration_digest}; the approved material has changed",
+                field="contract_declaration",
+            )
+        return entry
 
     def require_approved_candidate(
         self,
