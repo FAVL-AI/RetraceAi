@@ -35,6 +35,12 @@ build-backend = "setuptools.build_meta"
 # smoke test in docs/evidence/PACKAGING.md - a build that ships 0 modules is a FAILURE.
 where = ["packages/contracts", "packages/domain", "packages/i18n",
          "services/api", "services/runner", "services/verifier"]
+# `packages/i18n/tools/` holds dev scripts run by path, never imported. Because
+# packages/i18n is a discovery root, setuptools would publish them as a
+# TOP-LEVEL package literally named `tools`, which is both wrong (build tooling
+# is not runtime API) and dangerous (a generic name that collides with anything
+# else called `tools` in site-packages). Guarded by a test.
+exclude = ["tools*", "tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

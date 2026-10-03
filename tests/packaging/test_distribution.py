@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import shutil
 import subprocess
 import venv
 import zipfile
@@ -33,7 +34,22 @@ VENV_PY = REPO / ".venv" / "bin" / "python"
 #: Every top-level package that must reach the built artefact. Add a package here
 #: when it lands; a package that exists in the tree but is missing from the wheel
 #: is exactly the defect this file guards.
-EXPECTED_TOP_LEVEL = ("retrace_contracts",)
+EXPECTED_TOP_LEVEL = (
+    "retrace_contracts",
+    "retrace_domain",
+    "retrace_i18n",
+    "retrace_runner",
+    "retrace_verifier",
+)
+
+#: Top-level names a distribution must never publish. A wheel that installs a
+#: package called `tools` or `utils` into site-packages collides with every
+#: other project that does the same. This caught a real leak: dev scripts under
+#: `packages/i18n/tools/` were being shipped as top-level `tools`, because the
+#: directory sat inside a setuptools discovery root.
+FORBIDDEN_TOP_LEVEL = frozenset(
+    {"tools", "utils", "scripts", "tests", "test", "src", "lib", "common", "core", "bin"}
+)
 
 
 def _clean_env() -> dict[str, str]:
@@ -55,6 +71,16 @@ def wheel(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
     if not VENV_PY.exists():
         pytest.skip("project venv not present")
     out = tmp_path_factory.mktemp("wheel")
+    # Remove the stale setuptools scratch dir FIRST. `python -m build` isolates
+    # the build ENVIRONMENT but setuptools still reuses ./build/lib, so a wheel
+    # can be assembled from a previous source state. That really happened here:
+    # an exclusion added to pyproject.toml had no effect and the wheel kept
+    # shipping a package that had just been excluded, because build/lib still
+    # held a copy. A test that can be served stale content measures nothing.
+    # ./build is derived and gitignored, so removing it has no other effect.
+    stale = REPO / "build"
+    if stale.is_dir():
+        shutil.rmtree(stale)
     # S603: the argv is built here from a path this test constructed; there is no
     # untrusted input. The rule stays ENABLED globally because services/runner
     # executes untrusted notebooks and must not be exempt.
@@ -85,6 +111,20 @@ def test_wheel_ships_each_expected_package(wheel: pathlib.Path, top_level: str) 
     names = zipfile.ZipFile(wheel).namelist()
     assert any(n.startswith(f"{top_level}/") and n.endswith(".py") for n in names), (
         f"{top_level} exists in the source tree but is absent from the wheel"
+    )
+
+
+def test_wheel_publishes_no_generically_named_package(wheel: pathlib.Path) -> None:
+    """A distribution must not squat a generic top-level name in site-packages."""
+    tops = {
+        n.split("/")[0]
+        for n in zipfile.ZipFile(wheel).namelist()
+        if n.endswith(".py") and "/" in n
+    }
+    leaked = sorted(tops & FORBIDDEN_TOP_LEVEL)
+    assert not leaked, (
+        f"wheel publishes generically-named top-level package(s) {leaked}; these collide "
+        "with other projects in site-packages. Exclude them from packages discovery."
     )
 
 
