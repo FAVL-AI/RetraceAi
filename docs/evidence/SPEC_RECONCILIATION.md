@@ -96,3 +96,143 @@ R30 deserves separate note: a requirement for **independent human review and an 
 ### Action
 `docs/REQUIREMENTS.md` must gain RX entries for R18, R19, R20, R28, R30, R31 and the uncovered halves of R17, R23, R25, R29, R32 **before** any coverage figure is quoted. Until then, coverage is reported against the originals (section 2), not against the RX set.
 
+
+## 5. Schema reconciliation — **OPEN, and the largest divergence found**
+
+The archive carries seven machine-readable specs. Four describe entities this
+build already implements, and **three describe entities it has no counterpart
+for at all.** Field names below are from the archive; "mine" is what
+`packages/contracts` actually implements and ships.
+
+### 5.1 `result-contract.schema.json` — CONFLICT
+
+| | Required fields |
+|---|---|
+| **Archive** | `contract_id`, `tenant_id`, `project_id`, `version`, `status`, `reference_kind`, `inputs`, `required_checks`, `limitations` (+ `approval_ref`) |
+| **Mine** | `output_definitions`, `population`, `comparison`, `known_limits`, `contract_version`, `created_by` (+ `reference_inputs`, `units`, `exclusions`, `seed`, `split`, `required_checks`, `approval`) |
+
+Material differences, not just spelling:
+
+- **No identity or tenancy.** Mine has no `contract_id`, `tenant_id` or
+  `project_id`. A contract that cannot name its tenant cannot be isolated by the
+  RLS policies already proven in `tests/postgres` — the two halves do not yet
+  join up.
+- **No `status`.** The archive models a contract lifecycle (draft → approved →
+  superseded); mine infers approval from a separate ledger entry.
+- **No `reference_kind`.** This is the archive's mechanism for the distinction
+  the master prompt insists on: a *newly established* reference versus
+  *reproduction of a prior result*. Mine cannot express it, so it cannot
+  currently tell those two apart — a real scientific gap, not a naming one.
+- Renames: `limitations`↔`known_limits`, `version`↔`contract_version`,
+  `inputs`↔`reference_inputs`, `approval_ref`↔`approval`.
+- Mine is **stronger** in ways the archive draft does not express: canonical-JSON
+  `contract_hash` with proven key-order independence, frozen records, non-empty
+  limits enforced at construction, and per-output tolerances inside the hash so
+  widening one is detectable.
+
+### 5.2 `ui-plan.schema.json` — CONFLICT
+
+| | Required fields |
+|---|---|
+| **Archive** | `plan_id`, `layout_id`, `base_revision`, `mode`, `panels` (+ `explanation`) |
+| **Mine** | `plan_id`, `title`, `created_by` (+ `plan_version`, `components`, `hidden_region_ids`, `source_prompt`) |
+
+- **`base_revision` is missing from mine** and is the optimistic-concurrency
+  token RX-20 requires. Without it two editors silently overwrite each other.
+- **`mode`** carries freeform-vs-snapped; mine has no equivalent.
+- `panels`↔`components`; `explanation` (the user-facing reason for the layout)
+  has no counterpart in mine.
+- Mine is **stronger** on validation: script/SQL refusal, duplicate ids, size and
+  depth caps, and refusing a plan that either hides *or omits* a protected region.
+
+### 5.3 Entities with **no implementation at all**
+
+| Spec | Required fields | Why it matters |
+|---|---|---|
+| `action-proposal.schema.json` | `proposal_id`, `tenant_id`, `actor_id`, `action`, `target_id`, `target_version`, `input_digest`, `policy_digest`, `expires_at`, `idempotency_key`, `approval_required` | The governed-action envelope. `idempotency_key` is how RX-53 resume-safety is actually achieved, `target_version` is optimistic concurrency, `expires_at` time-bounds authority. **Nothing in this build implements any of it**, so "resume must not repeat a send, spend or approval" is currently a requirement with no mechanism |
+| `event-envelope.schema.json` | `id`, `tenant_id`, `stream_id`, `sequence`, `event_type`, `entity_id`, `occurred_at`, `recorded_at`, `data_state`, `trace_id` (+ `evidence_ref`) | `data_state` is the field that carries LIVE / STALE / REPLAY / DEMO. RX-25 forbids animating synthetic activity; this schema is the mechanism, and it is unimplemented |
+| `model-policy.json` | see below | The model-governance policy, unimplemented |
+
+`model-policy.json` is worth quoting because every default is a refusal:
+
+```
+default_provider                                       = "anthropic_direct"
+approved_models                                        = []        <- empty: nothing approved yet
+openrouter_enabled_by_default                          = false
+allow_unapproved_fallback                              = false
+send_confidential_data_without_explicit_project_policy = false
+log_prompt_content_by_default                          = false
+consumer_subscription_token_proxy_allowed              = false
+budget_required_before_paid_execution                  = true
+```
+
+`approved_models` being empty is consistent with PRECHECK B6: no model may be
+called because none is approved and no budget exists. `cache_partition_fields`
+enumerates the nine fields RX-39 requires in a cache key.
+
+### 5.4 `design-tokens.json` — supersedes my reconstruction
+
+Carries `status: "PROPOSED_VALUES_REQUIRE_CONTRAST_TESTS"`, which is the same
+position `docs/UX.md` reached independently ("these are intents; the test
+decides"), and a concrete dark palette (`canvas #0C1117`, `surface #141C25`,
+`raised #1B2733`, `text #EAF0F6`, `muted #A7B5C4`). My `docs/UX.md` palette was
+invented and **must yield to this file**. The spacing scale matches exactly
+(4, 8, 12, 16, 24, 32, 48), which is convention rather than agreement.
+
+### 5.5 Decision — one authority, before the web worker starts
+
+The archive's schemas become the **authoritative source**, with my stronger
+validation preserved on top rather than discarded. Required before dependent
+code is written:
+
+1. Rename to the archive's field names and add the missing ones
+   (`contract_id`/`tenant_id`/`project_id`/`status`/`reference_kind`,
+   `layout_id`/`base_revision`/`mode`/`explanation`).
+2. Keep canonical hashing, frozen records, non-empty limits and the UIPlan
+   hostile-input refusals — none conflicts with the archive, all exceed it.
+3. Generate the JSON Schemas from the models as now, and add a conformance test
+   asserting the generated schema **satisfies the archive's draft**, so the two
+   cannot drift again.
+4. Implement `action-proposal` and `event-envelope` before claiming RX-25 or
+   RX-53.
+
+**This renaming invalidates every digest computed so far** (`contract_hash`
+covers field names), so it must happen before any evidence bundle is treated as
+durable. Nothing currently depends on those digests outside the test suite,
+which is the cheapest moment this will ever be done.
+
+## 6. Packaged skills and agent definitions — inspected, **NOT enabled**
+
+Read, not executed or installed. The checksum proves provenance, not safety, and
+nothing was enabled because the bytes matched.
+
+| Artefact | Count | Observation |
+|---|---|---|
+| `.claude/skills/*/SKILL.md` | 11 | 27–28 lines each: a `name`, a `description` and prose procedure. No `allowed-tools` frontmatter, no embedded commands |
+| `.claude/agents/*.md` | 8 | Role briefs. Six mention shell-ish words (`bash`, `pip install`, `npm install`) **as subject matter in prose**, not as instructions to run |
+| `CLAUDE.md` | 1 | Project invariants |
+| `tools/validate_pack.py` | 1 | The package validator. **Read, deliberately not run** — Frank's reported 70/70 is accepted as his result, and I independently verified the 54/54 internal checksums instead, which needs no packaged code to execute |
+
+None was copied into `~/.claude/` or into the repository, so no packaged
+instruction can influence this session.
+
+**The invariants in the archive's `CLAUDE.md` are closer to this build than the
+prose was, and one of them caught a real defect.** It states that imported code
+executes only in the approved sandbox and *never on the developer host*. The
+scientific triad's case 1 was running its analysis through a bare host
+subprocess; it now executes through `run_notebook` inside the isolation
+boundary. That fix exists because the archive was recovered.
+
+Two further invariants are worth recording verbatim, because they state the T10
+scope boundary better than my own first draft did:
+
+> Execution success is not reproduction; reproduction is not scientific validity.
+
+> Repair workers cannot alter verifier logic, reference artefacts, approvals or
+> thresholds. Separate storage, credentials and execution roles enforce this;
+> prompts alone do not.
+
+The second is a standing criticism of the current implementation: `RepairAuthority`
+is an in-process path guard, so the separation is enforced by code in the same
+process rather than by distinct storage, credentials and execution roles. That is
+recorded as T2 residual risk in the threat model and is not yet closed.
