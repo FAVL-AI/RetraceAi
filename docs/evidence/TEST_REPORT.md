@@ -1,5 +1,35 @@
 # TEST_REPORT (interim — build in flight)
 
+> **Run provenance.** Earlier sections of this file record runs against earlier
+> trees. A test count is a measurement of a specific tree, not a property the
+> project keeps. The table immediately below is the only CURRENT result; the
+> `1097` figure that appeared in review belongs to tree `27875ff`
+> (commit `8a5eafb`) and was re-measured on that tree before being quoted again.
+
+## Current run
+
+| Field | Value |
+|---|---|
+| Commit | `4acb93b` |
+| Branch | `build/retrace-t0-t2` |
+| Worktree | clean (0 dirty entries at time of run) |
+| Command | `./scripts/test.sh` |
+| Result | **1117 passed, 5 skipped, 0 failed** |
+| Exit code | **0** |
+| Duration | 27.5 s |
+| Interpreter | `.venv/bin/python` 3.13.13, `PYTHONPATH` cleared by the runner |
+| Lint | `ruff check packages services tests` — clean |
+| Types | `mypy packages services` — clean, 55 source files |
+
+Prior measurement for comparison, same commands, tree `27875ff` / `8a5eafb`:
+1097 passed, 2 skipped, exit 0, 29 s. The delta is +20 passed and +3 skipped,
+all from `tests/authority` (T2), and nothing else changed.
+
+The 5 skips are each a deliberate, reasoned `NOT_RUN`, not an incidental skip:
+one no-I/O purity exemption for the schema exporter, one authenticated-tenant
+gate needing `services/api`, and three T2 attempts needing an authoritative
+store or the action-proposal envelope.
+
 Every number here is from a recorded run. Nothing is projected. Where a gate has not
 executed it says `NOT_RUN`, never a zero that reads as a pass.
 
