@@ -90,6 +90,8 @@ OUTCOME_PRECEDENCE: Final[tuple[str, ...]] = (
     "5. any required check SKIPPED or ERRORED -> EXECUTED_NOT_VERIFIED",
     "6. every check PASSED, no delta, run SUCCEEDED, values recomputed here"
     " -> REPRODUCED_WITHIN_CONTRACT",
+    "6b. reference_kind=NO_REFERENCE -> never REPRODUCED_WITHIN_CONTRACT, however well "
+    "the run went: there is no prior result for the claim to refer to",
     "7. anything else -> EXECUTED_NOT_VERIFIED; there is no fall-through to a pass",
 )
 
@@ -160,7 +162,7 @@ def _read_reference_values(
     mismatch is treated as *unusable* evidence: the verifier will not compare
     against bytes that are not the bytes the contract pinned.
     """
-    references = [item for item in contract.reference_inputs if item.role == role]
+    references = [item for item in contract.inputs if item.role == role]
     if not references:
         return (
             {},
@@ -178,12 +180,12 @@ def _read_reference_values(
     blocking: list[CheckResult] = []
     verified = True
     for reference in references:
-        check_id = f"reference:{reference.path}"
-        if not reader.exists(reference.path):
+        check_id = f"reference:{reference.id}"
+        if not reader.exists(reference.id):
             blocking.append(
                 _blocked(
                     check_id,
-                    f"reference {reference.path!r} is absent from the reference store; "
+                    f"reference {reference.id!r} is absent from the reference store; "
                     "verification abstains (RX-17)",
                     reason="reference-absent",
                 )
@@ -191,12 +193,12 @@ def _read_reference_values(
             verified = False
             continue
         try:
-            data = reader.read_bytes(reference.path)
+            data = reader.read_bytes(reference.id)
         except ReferenceUnavailable as error:
             blocking.append(
                 _blocked(
                     check_id,
-                    f"reference {reference.path!r} could not be read: {error}",
+                    f"reference {reference.id!r} could not be read: {error}",
                     reason="reference-unreadable",
                 )
             )
@@ -209,7 +211,7 @@ def _read_reference_values(
                     check_id=check_id,
                     status=CheckStatus.BLOCKED,
                     summary=(
-                        f"reference {reference.path!r} does not match the digest the contract "
+                        f"reference {reference.id!r} does not match the digest the contract "
                         "pins, so it is not the evidence the contract declared; verification "
                         "abstains rather than comparing against unpinned bytes"
                     ),
@@ -220,17 +222,17 @@ def _read_reference_values(
             )
             verified = False
             continue
-        suffix = Path(reference.path).suffix.lower()
+        suffix = Path(reference.id).suffix.lower()
         try:
             payload = read_payload_bytes(
-                data, suffix=suffix, limits=limits, path=reference.path
+                data, suffix=suffix, limits=limits, path=reference.id
             )
-            document = parse_output_document(payload, path=reference.path)
+            document = parse_output_document(payload, path=reference.id)
         except OutputParseRefused as error:
             blocking.append(
                 _blocked(
                     check_id,
-                    f"reference {reference.path!r} was refused by the defensive parser "
+                    f"reference {reference.id!r} was refused by the defensive parser "
                     f"({error.reason}) and was not deserialised; verification abstains",
                     reason=str(error.reason or "payload-refused"),
                 )
@@ -294,6 +296,7 @@ def _select_outcome(
     run_record: RunRecord | None,
     *,
     recomputed: bool,
+    permits_reproduced: bool = True,
 ) -> tuple[VerificationOutcome, str]:
     """Choose the outcome by :data:`OUTCOME_PRECEDENCE` and say why (RX-11, RX-12)."""
     if run_record is not None and run_record.execution_status is not ExecutionStatus.SUCCEEDED:
@@ -346,12 +349,26 @@ def _select_outcome(
         run_record is not None
         and run_record.execution_status is ExecutionStatus.SUCCEEDED
         and recomputed
+        and permits_reproduced
     ):
         return (
             VerificationOutcome.REPRODUCED_WITHIN_CONTRACT,
             f"all {len(checks)} declared check(s) were recomputed here from primary "
             "artefacts and are within the contract's declared tolerances, with no "
             "methodology delta",
+        )
+    if not permits_reproduced:
+        # The contract declares NO_REFERENCE. Checks that need no reference may
+        # still have run and passed, and that is worth reporting - but there is
+        # nothing a reproduction claim could be ABOUT, so the word is withheld.
+        # This is a property of the declaration, not of the run's quality.
+        return (
+            VerificationOutcome.EXECUTED_NOT_VERIFIED,
+            "the run completed and no check disagreed, but the contract declares "
+            "reference_kind=NO_REFERENCE, so there is no prior result for a "
+            "reproduction claim to refer to; reporting REPRODUCED_WITHIN_CONTRACT "
+            "here would assert agreement with evidence the contract says does not "
+            "exist",
         )
     return (
         VerificationOutcome.EXECUTED_NOT_VERIFIED,
@@ -501,7 +518,16 @@ def verify(
             if check.check_id.startswith("output:")
         )
     )
-    outcome, reason = _select_outcome(checks, deltas, run_record, recomputed=recomputed)
+    outcome, reason = _select_outcome(
+        checks,
+        deltas,
+        run_record,
+        recomputed=recomputed,
+        # RX-12/RX-17: a NO_REFERENCE contract can never be reported as reproduced.
+        # The clamp lives here rather than in the contract because the contract
+        # states what is permitted and the verifier decides what is claimed.
+        permits_reproduced=contract.permits_reproduced_outcome,
+    )
     fingerprint = sha256_hex(
         "|".join(
             f"{check.check_id}={check.status.value}" for check in sorted(

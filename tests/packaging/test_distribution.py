@@ -187,11 +187,26 @@ def test_installed_artefact_still_enforces_approval_binding(
 import datetime as dt, sys
 import retrace_contracts as rc
 c = rc.ResultContract(
+    contract_id="contract-smoke-1",
+    tenant_id="aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    project_id="project-smoke-1",
+    version=1,
+    status=rc.ContractStatus.DRAFT,
+    reference_kind=rc.ReferenceKind.NEW_TEACHING_REFERENCE,
+    inputs=(rc.ReferenceInput(id="inputs/m.csv", sha256="a"*64, role="input"),),
     output_definitions=(rc.OutputDefinition(name="m", kind=rc.OutputKind.SCALAR, unit="g"),),
     population=rc.Population(expected_count=3, selection_rule="all"),
     comparison=rc.ComparisonSpec(algorithm="scalar_abs_rel",
                                  tolerances={"m": rc.Tolerance(abs_tol=1e-9)}),
-    known_limits=("synthetic",), contract_version=1, created_by="favl")
+    required_checks=("numeric:m",),
+    limitations=("synthetic",), created_by="favl")
+# The reconciled enums must survive packaging too: a wheel that shipped a model
+# without them would still import, and this smoke test would otherwise miss it.
+assert [e.value for e in rc.ReferenceKind] == [
+    "HISTORICAL_REFERENCE", "NEW_TEACHING_REFERENCE", "NO_REFERENCE"], "ReferenceKind drifted"
+assert c.permits_reproduced_outcome is True
+assert not rc.ResultContract(**{**c.model_dump(), "reference_kind":
+    rc.ReferenceKind.NO_REFERENCE}).permits_reproduced_outcome, "NO_REFERENCE must forbid it"
 bound = dict(contract_hash=c.contract_hash, candidate_hash="b"*64, input_snapshot_id="s",
              environment_policy_digest="c"*64, action_digest="d"*64)
 ap = rc.Approval(approval_id="a", approved_by="favl",

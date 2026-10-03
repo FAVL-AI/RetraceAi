@@ -64,6 +64,14 @@ ignore = [
 ]
 
 [tool.mypy]
+# SCOPE: `mypy packages services` - the code that ships. tests/ is NOT type
+# checked, and that is a limitation rather than a preference: several suites each
+# have a `conftest.py`, and with no __init__.py files mypy sees duplicate module
+# names and refuses to continue ("Found 1 error ... errors prevented further
+# checking"). Making tests packages would change pytest's import semantics for
+# every suite, so the shipped code is checked strictly and the suites rely on
+# ruff plus their own assertions. Revisit with explicit_package_bases if tests
+# ever need checking.
 python_version = "3.12"
 mypy_path = "packages/contracts:packages/domain:packages/i18n:services/api:services/runner:services/verifier"
 strict = false

@@ -1,4 +1,10 @@
-"""The hashed result contract and its approval linkage (RX-03, RX-04, RX-13).
+"""The hashed result contract and its approval reference (RX-03, RX-04, RX-13).
+
+Covers the reconciliation recorded in
+``docs/evidence/SPEC_RECONCILIATION_CLOSURE.md`` section 2: the original's field
+names, the five fields the reconstruction had lost, the ``APPROVED`` conditional,
+the ``NO_REFERENCE`` admissibility rule (RX-12, RX-17) and the external payload
+boundary (RX-10, RX-47).
 
 """
 
@@ -7,34 +13,52 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from conftest import AUTHOR, build_approval, build_contract, digest  # noqa: F401
+from conftest import (  # noqa: F401
+    AUTHOR,
+    SERVER_ESTABLISHED,
+    build_approval,
+    build_contract,
+    build_draft,
+    declaration_fields,
+    digest,
+)
 from pydantic import ValidationError
 from retrace_contracts import (
-    ApprovalInvalidated,
     ComparisonSpec,
     ContractImmutable,
     ContractNotApproved,
+    ContractStatus,
     ExclusionRule,
     OutputDefinition,
     OutputKind,
     Population,
     ReferenceInput,
+    ReferenceKind,
     ResultContract,
+    ResultContractDraft,
     SplitSpec,
     Tolerance,
+    persist_contract_draft,
 )
+from retrace_contracts.result_contract import SCHEMA_VERSION, SERVER_ESTABLISHED_FIELDS
 
 # One altered value per declared field. Each alteration keeps the contract
 # internally valid, so the only thing under test is the digest's sensitivity.
 FIELD_MUTATIONS: dict[str, Any] = {
-    "reference_inputs": (
+    "contract_id": "rc-0002",
+    "tenant_id": "tenant-0002",
+    "project_id": "proj-other",
+    "version": 2,
+    "status": ContractStatus.SUPERSEDED,
+    "reference_kind": ReferenceKind.NO_REFERENCE,
+    "inputs": (
         ReferenceInput(
-            path="data/penguins_synthetic.csv",
+            id="data/penguins_synthetic.csv",
             sha256=digest("reference-input"),
             role="raw-measurements",
         ),
         ReferenceInput(
-            path="data/reference_means.json",
+            id="data/reference_means.json",
             sha256=digest("reference-output"),
             role="reference-output",
         ),
@@ -59,9 +83,9 @@ FIELD_MUTATIONS: dict[str, Any] = {
         tolerances={"mean_body_mass": Tolerance(abs_tol=1e-6, rel_tol=1e-9)},
     ),
     "required_checks": ("chk.population-count",),
-    "known_limits": ("SYNTHETIC fixture data only.",),
-    "contract_version": 2,
+    "limitations": ("SYNTHETIC fixture data only.",),
     "created_by": "F. A. Van Laarhoven",
+    "approval_ref": "ap-ledger-0001",
 }
 
 
@@ -96,10 +120,10 @@ def test_semantically_equal_contracts_hash_equal() -> None:
     # Same declaration, built from lists instead of tuples and with the
     # tolerance keywords supplied in the other order.
     second = build_contract(
-        reference_inputs=list(first.reference_inputs),
+        inputs=list(first.inputs),
         output_definitions=list(first.output_definitions),
         required_checks=list(first.required_checks),
-        known_limits=list(first.known_limits),
+        limitations=list(first.limitations),
         comparison=ComparisonSpec(
             algorithm="elementwise-abs-rel",
             tolerances={"mean_body_mass": Tolerance(rel_tol=1e-9, abs_tol=1e-6)},
@@ -128,21 +152,347 @@ def test_contract_hash_is_not_a_stored_field() -> None:
     assert "contract_hash" not in ResultContract.model_fields
 
 
-def test_approval_is_deliberately_excluded_from_the_hash() -> None:
-    """RX-03/RX-05: an approval binds contract_hash, so it is not inside it.
+# --------------------------------------------------------------------------- #
+# The original's field names (closure section 2)
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    ("original_name", "retired_name"),
+    [
+        ("version", "contract_version"),
+        ("inputs", "reference_inputs"),
+        ("limitations", "known_limits"),
+        ("approval_ref", "approval"),
+    ],
+)
+def test_the_originals_field_name_wins(original_name: str, retired_name: str) -> None:
+    """Closure section 2: the recovered original's name is the name we carry.
 
-    This exclusion is the single exception to "every field is hashed" and is
-    asserted here so it stays a deliberate decision rather than drift.
+    Asserting the retired spelling is *absent* matters as much as asserting the
+    new one is present: a model that accepted both would let two names for one
+    concept circulate, and `extra="forbid"` is what makes the old spelling a
+    refusal rather than a silently ignored key.
     """
-    assert ResultContract.CANONICAL_EXCLUDE == frozenset({"approval"})
-    unapproved = build_contract()
-    approved = unapproved.with_approval(
-        build_approval(contract_hash=unapproved.contract_hash)
+    assert original_name in ResultContract.model_fields
+    assert retired_name not in ResultContract.model_fields
+    with pytest.raises(ValidationError):
+        build_contract(**{retired_name: "whatever"})
+
+
+def test_reference_input_uses_the_originals_id_field_name() -> None:
+    """Closure section 2: `ReferenceInput.path` is now `id`; `role` is kept."""
+    assert set(ReferenceInput.model_fields) == {"id", "sha256", "role"}
+    with pytest.raises(ValidationError):
+        ReferenceInput(path="data/x.csv", sha256=digest("x"), role="raw")  # type: ignore[call-arg]
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["contract_id", "tenant_id", "project_id", "version", "status", "reference_kind"],
+)
+def test_the_fields_the_reconstruction_had_lost_are_required(field: str) -> None:
+    """Closure section 2 negative control: each recovered field is mandatory.
+
+    `tenant_id` is the sharpest of these: without it a contract cannot be
+    isolated by the RLS proven in `tests/postgres` (RX-47), so a contract that
+    could omit it would not join to the tenancy half of the system at all.
+    """
+    fields = declaration_fields()
+    fields.update(SERVER_ESTABLISHED)
+    fields.pop(field)
+    with pytest.raises(ValidationError):
+        ResultContract(**fields)
+
+
+# --------------------------------------------------------------------------- #
+# Closed enums (closure section 4)
+# --------------------------------------------------------------------------- #
+def test_reference_kind_has_exactly_the_three_original_values() -> None:
+    """Closure section 4: the original's vocabulary, with nothing added."""
+    assert {member.value for member in ReferenceKind} == {
+        "HISTORICAL_REFERENCE",
+        "NEW_TEACHING_REFERENCE",
+        "NO_REFERENCE",
+    }
+
+
+def test_contract_status_has_exactly_the_three_original_values() -> None:
+    """Closure section 2: DRAFT / APPROVED / SUPERSEDED, and no fourth."""
+    assert {member.value for member in ContractStatus} == {
+        "DRAFT",
+        "APPROVED",
+        "SUPERSEDED",
+    }
+
+
+def test_synthetic_is_not_a_reference_kind() -> None:
+    """Closure section 4 negative control: data provenance is a separate attribute.
+
+    `SYNTHETIC` describes where the data came from. Admitting it here would let
+    "the fixture data is synthetic" be stored in the field that answers "is
+    there a reference to reproduce against?", which are different questions.
+    """
+    assert "SYNTHETIC" not in ReferenceKind.__members__
+    with pytest.raises(ValueError):
+        ReferenceKind("SYNTHETIC")
+    with pytest.raises(ValidationError):
+        build_contract(reference_kind="SYNTHETIC")
+
+
+@pytest.mark.parametrize("bad", ["APPROVED_BY_CLIENT", "approved", "PENDING", ""])
+def test_an_unlisted_status_is_refused(bad: str) -> None:
+    """RX-04 negative control: the status vocabulary is closed."""
+    with pytest.raises(ValidationError):
+        build_contract(status=bad)
+
+
+# --------------------------------------------------------------------------- #
+# NO_REFERENCE admissibility (RX-12, RX-17)
+# --------------------------------------------------------------------------- #
+def test_no_reference_forbids_the_reproduced_outcome() -> None:
+    """RX-12/RX-17: with no reference, `REPRODUCED_WITHIN_CONTRACT` is inadmissible.
+
+    This is the machine-checkable form of the rule the verifier must consult.
+    """
+    contract = build_contract(reference_kind=ReferenceKind.NO_REFERENCE)
+    assert contract.permits_reproduced_outcome is False
+    assert contract.reference_kind.permits_reproduced_outcome is False
+
+
+@pytest.mark.parametrize(
+    "kind", [ReferenceKind.HISTORICAL_REFERENCE, ReferenceKind.NEW_TEACHING_REFERENCE]
+)
+def test_a_contract_with_a_reference_permits_the_reproduced_outcome(
+    kind: ReferenceKind,
+) -> None:
+    """RX-12 positive control: the gate is not simply always False.
+
+    A property that returned False for every input would also pass the negative
+    control above while blocking every legitimate pass, so both directions are
+    asserted.
+    """
+    assert build_contract(reference_kind=kind).permits_reproduced_outcome is True
+
+
+def test_every_reference_kind_is_covered_by_the_admissibility_tests() -> None:
+    """Meta-test: a fourth reference kind cannot slip past the two tests above."""
+    covered = {
+        ReferenceKind.NO_REFERENCE,
+        ReferenceKind.HISTORICAL_REFERENCE,
+        ReferenceKind.NEW_TEACHING_REFERENCE,
+    }
+    assert set(ReferenceKind) == covered
+
+
+# --------------------------------------------------------------------------- #
+# The APPROVED conditional and the approval reference (closure sections 2, 6)
+# --------------------------------------------------------------------------- #
+def test_approved_status_requires_an_approval_ref() -> None:
+    """Closure section 2 negative control: the original's conditional is enforced.
+
+    `if status == APPROVED then approval_ref is required`. Without this, a
+    record could claim approval while naming no ledger entry, which is an
+    unfalsifiable claim.
+    """
+    with pytest.raises(ValidationError, match="approval_ref is absent"):
+        build_contract(status=ContractStatus.APPROVED)
+
+
+@pytest.mark.parametrize("empty", [None, ""])
+def test_approved_status_refuses_an_empty_approval_ref(empty: str | None) -> None:
+    """Closure section 2 negative control: a blank reference is not a reference."""
+    with pytest.raises(ValidationError):
+        build_contract(status=ContractStatus.APPROVED, approval_ref=empty)
+
+
+def test_an_approved_contract_names_its_ledger_record() -> None:
+    """RX-04 positive control: APPROVED plus a reference is accepted."""
+    contract = build_contract(status=ContractStatus.APPROVED, approval_ref="ap-0001")
+    assert contract.is_approved is True
+    assert contract.require_approval_ref() == "ap-0001"
+
+
+@pytest.mark.parametrize("status", [ContractStatus.DRAFT, ContractStatus.SUPERSEDED])
+def test_require_approval_ref_raises_when_not_approved(status: ContractStatus) -> None:
+    """RX-04: acceptance against an unapproved contract raises ContractNotApproved.
+
+    SUPERSEDED is included deliberately: a contract that *was* approved and has
+    since been replaced must not keep authorising acceptance.
+    """
+    contract = build_contract(status=status, approval_ref="ap-0001")
+    assert contract.is_approved is False
+    with pytest.raises(ContractNotApproved) as caught:
+        contract.require_approval_ref()
+    assert caught.value.contract_hash == contract.contract_hash
+
+
+def test_approval_ref_is_a_string_reference_not_an_embedded_record() -> None:
+    """Closure section 6: the approval is referenced, never embedded.
+
+    An embedded approval would have to contain the hash of the material it sits
+    inside. Asserting the field refuses an Approval object is what keeps the
+    recursion from being reintroduced.
+    """
+    approval = build_approval(contract_hash=digest("whatever"))
+    with pytest.raises(ValidationError):
+        build_contract(status=ContractStatus.APPROVED, approval_ref=approval)
+
+
+def test_nothing_is_withheld_from_the_contract_digest() -> None:
+    """Closure section 6: with no embedded approval there is nothing to exclude."""
+    assert ResultContract.CANONICAL_EXCLUDE == frozenset()
+
+
+def test_changing_approval_ref_changes_the_hash_without_hashing_the_approval() -> None:
+    """Closure section 6: the digest covers the reference, not the approval record.
+
+    Two properties in one test because they are two halves of the same decision:
+    the reference is content (so it is hashed), and the approval record is not
+    reachable from the contract at all (so no approval digest can recurse into
+    the contract digest).
+    """
+    first = build_contract(status=ContractStatus.APPROVED, approval_ref="ap-0001")
+    second = build_contract(status=ContractStatus.APPROVED, approval_ref="ap-0002")
+    assert first.approval_ref != second.approval_ref
+    assert first.contract_hash != second.contract_hash
+
+    payload = first.canonical_payload()
+    assert payload["approval_ref"] == "ap-0001"
+    # The hashed payload carries the reference as a bare string: no approval
+    # fields, and in particular no approval digest, are reachable from it.
+    assert isinstance(payload["approval_ref"], str)
+    for approval_field in ("approval", "candidate_hash", "approved_by", "binding_digest"):
+        assert approval_field not in payload
+    assert "binding_digest" not in first.canonical_document()
+
+
+def test_approving_a_contract_changes_its_contract_hash() -> None:
+    """Consequence of closure section 6, recorded rather than discovered later.
+
+    `status` and `approval_ref` are both hashed content, so the APPROVED record
+    does not share a digest with the DRAFT the approval was granted against. An
+    Approval binds the hash of the declaration it judged, which means the ledger
+    must compare against the hash recorded at approval time and must NOT
+    re-derive it from the approved record. This test exists so that the
+    consequence is visible at this layer; closing it is an integration decision
+    for the domain layer, which owns the ledger.
+    """
+    draft_state = build_contract(status=ContractStatus.DRAFT)
+    approved_state = build_contract(status=ContractStatus.APPROVED, approval_ref="ap-0001")
+    assert draft_state.contract_hash != approved_state.contract_hash
+    assert any("recorded at approval time" in limit for limit in ResultContract.KNOWN_SHAPE_LIMITS)
+
+
+# --------------------------------------------------------------------------- #
+# The external payload boundary (RX-10, RX-47)
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize("field", list(SERVER_ESTABLISHED_FIELDS))
+def test_the_external_draft_cannot_carry_a_server_established_field(field: str) -> None:
+    """RX-10/RX-47 negative control: a client cannot submit its own tenant or status.
+
+    The refusal matters more than the omission. If the field were merely
+    dropped, a client would be told its submission succeeded while the
+    `tenant_id` it chose -- or the `APPROVED` it claimed -- was discarded, and
+    nothing would surface the attempt.
+    """
+    values = {
+        "contract_id": "rc-attacker",
+        "tenant_id": "tenant-victim",
+        "status": ContractStatus.APPROVED,
+        "approval_ref": "ap-forged",
+    }
+    assert field not in ResultContractDraft.model_fields
+    with pytest.raises(ValidationError) as caught:
+        build_draft(**{field: values[field]})
+    assert "extra_forbidden" in str(caught.value)
+
+
+def test_the_draft_carries_exactly_the_client_authorable_declaration() -> None:
+    """RX-10: the boundary model's shape is asserted, not assumed."""
+    assert set(ResultContractDraft.model_fields) == set(ResultContract.model_fields) - set(
+        SERVER_ESTABLISHED_FIELDS
     )
-    assert approved.contract_hash == unapproved.contract_hash
-    assert "approval" not in approved.canonical_payload()
 
 
+def test_persisting_a_draft_produces_an_equivalent_contract() -> None:
+    """RX-10 positive control: the boundary is passable with server-held values."""
+    draft = build_draft()
+    contract = persist_contract_draft(
+        draft, contract_id="rc-0001", tenant_id="tenant-0001", status=ContractStatus.DRAFT
+    )
+    assert contract == build_contract()
+    assert contract.tenant_id == "tenant-0001"
+    assert contract.status is ContractStatus.DRAFT
+    assert contract.approval_ref is None
+
+
+def test_persisting_a_draft_takes_tenancy_from_the_caller_not_the_payload() -> None:
+    """RX-47: the tenant is whatever the server passed, and the draft cannot say.
+
+    Negative control for the same property: the draft carries `project_id`
+    (which the server authorises) but has no way to express `tenant_id` at all,
+    so there is no payload value for this function to prefer by mistake.
+    """
+    draft = build_draft(project_id="proj-penguins")
+    contract = persist_contract_draft(draft, contract_id="rc-9", tenant_id="tenant-server")
+    assert contract.tenant_id == "tenant-server"
+    assert "tenant_id" not in draft.model_dump()
+
+
+def test_the_draft_is_held_to_the_same_scientific_invariants() -> None:
+    """RX-03/RX-13: a malformed declaration is refused at the boundary.
+
+    A boundary model that validated less would accept a submission and refuse it
+    later, after the client had been told it succeeded.
+    """
+    with pytest.raises(ValidationError, match="no\\s+declared tolerance"):
+        build_draft(comparison=ComparisonSpec(algorithm="elementwise-abs-rel", tolerances={}))
+    with pytest.raises(ValidationError):
+        build_draft(limitations=())
+    with pytest.raises(ValidationError, match="duplicate input id"):
+        reference = ReferenceInput(id="data/x.csv", sha256=digest("x"), role="raw")
+        build_draft(inputs=(reference, reference))
+
+
+def test_persisting_refuses_an_approved_status_with_no_reference() -> None:
+    """RX-04 negative control: the conditional holds on the persistence path too."""
+    with pytest.raises(ValidationError, match="approval_ref is absent"):
+        persist_contract_draft(
+            build_draft(),
+            contract_id="rc-1",
+            tenant_id="tenant-1",
+            status=ContractStatus.APPROVED,
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Document shape version vs scientific version (closure section 5)
+# --------------------------------------------------------------------------- #
+def test_schema_version_and_contract_version_are_not_conflated() -> None:
+    """Closure section 5: two different versions, neither derived from the other.
+
+    `SCHEMA_VERSION` versions the document *shape* for everyone;
+    `ResultContract.version` versions one researcher's declaration. A contract
+    at version 7 does not imply shape 7, and bumping the shape does not bump
+    anyone's contract.
+    """
+    assert "SCHEMA_VERSION" not in ResultContract.model_fields
+    contract = build_contract(version=7)
+    assert contract.version == 7
+    assert SCHEMA_VERSION == 2
+    assert contract.version != SCHEMA_VERSION
+    # The shape version is a module constant, so no instance can move it.
+    assert SCHEMA_VERSION == 2
+
+
+def test_contract_version_must_be_at_least_one() -> None:
+    """RX-03 negative control: version 0 is not a released declaration."""
+    with pytest.raises(ValidationError):
+        build_contract(version=0)
+
+
+# --------------------------------------------------------------------------- #
+# Invariants retained from before the reconciliation
+# --------------------------------------------------------------------------- #
 def test_mutating_the_units_mapping_changes_the_hash() -> None:
     """RX-03: the digest follows content, including the mutable units mapping.
 
@@ -157,22 +507,36 @@ def test_mutating_the_units_mapping_changes_the_hash() -> None:
     assert contract.contract_hash != before
 
 
-def test_known_limits_must_be_non_empty() -> None:
-    """RX-03 negative control: a contract stating no limits is refused."""
+def test_limitations_must_be_non_empty() -> None:
+    """Closure section 2 negative control: deliberately stricter than the original.
+
+    The original requires `limitations` to be present but permits an empty
+    array. A contract stating no limits claims the declaration has no boundary,
+    so the stricter rule is kept.
+    """
     with pytest.raises(ValidationError):
-        build_contract(known_limits=())
+        build_contract(limitations=())
 
 
-def test_whitespace_only_known_limit_is_refused() -> None:
+def test_whitespace_only_limitation_is_refused() -> None:
     """RX-03 negative control: a blank limit is not a stated limit."""
     with pytest.raises(ValidationError):
-        build_contract(known_limits=("   ",))
+        build_contract(limitations=("   ",))
 
 
 def test_output_definitions_must_be_non_empty() -> None:
     """RX-03 negative control: there is nothing to reproduce with no outputs."""
     with pytest.raises(ValidationError):
         build_contract(output_definitions=())
+
+
+def test_inputs_must_be_non_empty() -> None:
+    """Closure section 2 negative control: the original's `minItems: 1` is adopted.
+
+    A contract pinning no inputs has no input identity for RX-01 to check.
+    """
+    with pytest.raises(ValidationError):
+        build_contract(inputs=())
 
 
 def test_duplicate_output_names_are_refused() -> None:
@@ -187,13 +551,13 @@ def test_duplicate_output_names_are_refused() -> None:
         )
 
 
-def test_duplicate_reference_paths_are_refused() -> None:
-    """RX-03 negative control: the same reference file declared twice."""
+def test_duplicate_input_ids_are_refused() -> None:
+    """RX-03 negative control: the same input declared twice."""
     reference = ReferenceInput(
-        path="data/penguins_synthetic.csv", sha256=digest("x"), role="raw"
+        id="data/penguins_synthetic.csv", sha256=digest("x"), role="raw"
     )
-    with pytest.raises(ValidationError, match="duplicate reference input path"):
-        build_contract(reference_inputs=(reference, reference))
+    with pytest.raises(ValidationError, match="duplicate input id"):
+        build_contract(inputs=(reference, reference))
 
 
 def test_duplicate_exclusion_ids_are_refused() -> None:
@@ -275,13 +639,18 @@ def test_split_fraction_must_be_strictly_inside_zero_and_one(fraction: float) ->
 
 
 @pytest.mark.parametrize(
-    "path",
+    "bad_id",
     ["/etc/passwd", "../outside.csv", "data/../../outside.csv", "C:/data.csv", "data\\x.csv", ""],
 )
-def test_reference_input_path_must_be_safe_and_relative(path: str) -> None:
-    """RX-06/RX-42 negative control: an escaping reference path is refused."""
+def test_reference_input_id_must_be_safe_and_relative(bad_id: str) -> None:
+    """RX-06/RX-42 negative control: an escaping input id is refused.
+
+    The original schema constrains `id` only to a non-empty string. Keeping the
+    traversal rule is stricter than the original and is what stops an id from
+    resolving outside the snapshot when the verifier reads the pinned bytes.
+    """
     with pytest.raises(ValidationError):
-        ReferenceInput(path=path, sha256=digest("x"), role="raw")
+        ReferenceInput(id=bad_id, sha256=digest("x"), role="raw")
 
 
 @pytest.mark.parametrize(
@@ -291,13 +660,7 @@ def test_reference_input_path_must_be_safe_and_relative(path: str) -> None:
 def test_reference_input_sha256_must_be_lowercase_hex_64(bad_digest: str) -> None:
     """RX-01 negative control: a malformed digest is not accepted as a digest."""
     with pytest.raises(ValidationError):
-        ReferenceInput(path="data/x.csv", sha256=bad_digest, role="raw")
-
-
-def test_contract_version_must_be_at_least_one() -> None:
-    """RX-03 negative control: version 0 is not a released declaration."""
-    with pytest.raises(ValidationError):
-        build_contract(contract_version=0)
+        ReferenceInput(id="data/x.csv", sha256=bad_digest, role="raw")
 
 
 def test_unknown_field_is_refused() -> None:
@@ -315,44 +678,11 @@ def test_contract_is_immutable_with_a_named_exception() -> None:
     assert caught.value.record == "ResultContract"
 
 
-def test_require_approval_raises_when_unapproved() -> None:
-    """RX-04: acceptance against an unapproved contract raises ContractNotApproved."""
-    contract = build_contract()
-    assert contract.is_approved is False
-    with pytest.raises(ContractNotApproved) as caught:
-        contract.require_approval()
-    assert caught.value.contract_hash == contract.contract_hash
-
-
-def test_with_approval_links_a_matching_approval() -> None:
-    """RX-04: a matching approval makes the contract approved, hash unchanged."""
-    contract = build_contract()
-    approval = build_approval(contract_hash=contract.contract_hash)
-    approved = contract.with_approval(approval)
-    assert approved.is_approved is True
-    assert approved.require_approval() is approval
-    assert contract.is_approved is False, "with_approval must not mutate the original"
-
-
-def test_with_approval_refuses_an_approval_for_another_contract() -> None:
-    """RX-05 negative control: an approval for a different hash cannot be attached."""
-    contract = build_contract()
-    foreign = build_approval(contract_hash=digest("some-other-contract"))
-    with pytest.raises(ApprovalInvalidated) as caught:
-        contract.with_approval(foreign)
-    assert caught.value.field == "contract_hash"
-
-
-def test_constructing_with_a_mismatched_approval_is_refused() -> None:
-    """RX-05 negative control: the mismatch cannot be smuggled past the constructor."""
-    foreign = build_approval(contract_hash=digest("some-other-contract"))
-    with pytest.raises(ValidationError, match="different contract_hash"):
-        build_contract(approval=foreign)
-
-
-def test_is_approved_is_false_without_an_approval() -> None:
-    """RX-04: absence of an approval is never read as approval."""
-    assert build_contract(approval=None).is_approved is False
+def test_the_draft_is_immutable_too() -> None:
+    """RX-03: the boundary payload is a frozen record, not a mutable bag."""
+    draft = build_draft()
+    with pytest.raises(ContractImmutable):
+        draft.seed = 99
 
 
 def test_canonical_document_is_inspectable() -> None:
@@ -360,4 +690,17 @@ def test_canonical_document_is_inspectable() -> None:
     contract = build_contract()
     document = contract.canonical_document()
     assert document.startswith('{"@canonical_form":1,"@type":"retrace.ResultContract"')
-    assert "approval" not in document
+    assert '"tenant_id":"tenant-0001"' in document
+
+
+def test_the_draft_digests_under_its_own_type_tag() -> None:
+    """RX-03: a draft and a contract with the same declaration do not collide.
+
+    Domain separation is the point: a payload that has not been through the
+    server must not produce the digest of a persisted record.
+    """
+    draft = build_draft()
+    contract = build_contract()
+    assert draft.canonical_type_tag() == "retrace.ResultContractDraft"
+    assert contract.canonical_type_tag() == "retrace.ResultContract"
+    assert draft.content_digest() != contract.contract_hash

@@ -8,7 +8,14 @@ import json
 from pathlib import Path
 
 import pytest
-from conftest import build_approval, build_bundle, build_contract, build_plan, build_proposal
+from conftest import (
+    build_approval,
+    build_bundle,
+    build_contract,
+    build_draft,
+    build_plan,
+    build_proposal,
+)
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError as JsonSchemaValidationError
 from retrace_contracts.export_schemas import (
@@ -20,6 +27,7 @@ from retrace_contracts.export_schemas import (
     render_schema,
     stale_schemas,
 )
+from retrace_contracts.result_contract import SCHEMA_VERSION
 
 SCHEMA_DIR = default_output_directory()
 
@@ -88,7 +96,7 @@ def test_check_mode_passes_on_a_fresh_export(tmp_path: Path) -> None:
 
 
 def test_write_mode_creates_every_schema(tmp_path: Path) -> None:
-    """The exporter writes all five schemas and reports success."""
+    """The exporter writes every declared schema and reports success."""
     assert main(["--out-dir", str(tmp_path)]) == 0
     assert sorted(path.name for path in tmp_path.glob("*.json")) == sorted(
         name for name, _, _ in SCHEMA_EXPORTS
@@ -126,6 +134,7 @@ def _validator(filename: str) -> Draft202012Validator:
 
 REAL_INSTANCES = {
     "result_contract.schema.json": build_contract,
+    "result_contract_draft.schema.json": build_draft,
     "repair_proposal.schema.json": build_proposal,
     "approval.schema.json": build_approval,
     "evidence_bundle_manifest.schema.json": build_bundle,
@@ -150,12 +159,42 @@ def test_an_unknown_field_fails_schema_validation(filename: str) -> None:
         _validator(filename).validate(payload)
 
 
-def test_result_contract_schema_requires_known_limits() -> None:
-    """RX-03 negative control: the schema carries the non-empty limits rule."""
+def test_result_contract_schema_requires_limitations() -> None:
+    """RX-03 negative control: the schema carries the non-empty limitations rule.
+
+    `limitations` is the original schema's name for what this model used to call
+    `known_limits`; the non-empty rule is deliberately stricter than the
+    original, which permits an empty array (closure section 2).
+    """
     payload = json.loads(build_contract().model_dump_json())
-    payload["known_limits"] = []
+    payload["limitations"] = []
     with pytest.raises(JsonSchemaValidationError):
         _validator("result_contract.schema.json").validate(payload)
+
+
+@pytest.mark.parametrize("field", ["contract_id", "tenant_id", "status", "approval_ref"])
+def test_the_draft_schema_rejects_a_server_established_field(field: str) -> None:
+    """RX-10/RX-47 negative control: the published boundary schema refuses them too.
+
+    The model refuses these (see `test_result_contract.py`); this asserts the
+    *generated schema* does, so a client validating its payload before sending
+    learns the same thing the server would tell it.
+    """
+    payload = json.loads(build_draft().model_dump_json())
+    payload[field] = "tenant-victim" if field == "tenant_id" else "x"
+    with pytest.raises(JsonSchemaValidationError):
+        _validator("result_contract_draft.schema.json").validate(payload)
+
+
+def test_the_result_contract_schema_id_carries_the_document_shape_version() -> None:
+    """Closure section 5: the `$id` version is the shape version, not a contract's.
+
+    `SCHEMA_VERSION` would be inert if nothing consumed it, and an inert version
+    constant drifts from the shape it claims to describe.
+    """
+    document = json.loads((SCHEMA_DIR / "result_contract.schema.json").read_text())
+    assert document["$id"] == f"urn:retrace:schema:result_contract:{SCHEMA_VERSION}"
+    assert build_contract().version != SCHEMA_VERSION
 
 
 def test_evidence_bundle_schema_requires_limitations() -> None:

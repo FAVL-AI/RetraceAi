@@ -26,16 +26,6 @@
       "title": "ComparisonSpec",
       "type": "object"
     },
-    "ContractStatus": {
-      "description": "Lifecycle status of a :class:`~retrace_contracts.ResultContract` (RX-03, RX-04).\n\nAdopted verbatim from the recovered original schema. The status is\n**server-established from the approval ledger**: a client-supplied\n``\"APPROVED\"`` establishes nothing, which is why the external draft payload\ncannot carry this field at all.\n\nMembers\n-------\nDRAFT:\n    Authored but not approved. Nothing may be accepted against it (RX-04).\nAPPROVED:\n    An approval ledger record exists, and the contract names it in\n    ``approval_ref``. The model refuses ``APPROVED`` without one.\nSUPERSEDED:\n    Replaced by a later version. Kept because evidence already references\n    it; frozen evidence is versioned, never silently edited (RX-52).",
-      "enum": [
-        "DRAFT",
-        "APPROVED",
-        "SUPERSEDED"
-      ],
-      "title": "ContractStatus",
-      "type": "string"
-    },
     "ExclusionRule": {
       "additionalProperties": false,
       "description": "One explicit exclusion rule (RX-03, RX-14).\n\nExclusions are structured rather than free prose so that an altered\nexclusion can be reported as a named methodology delta.",
@@ -290,41 +280,17 @@
       "type": "object"
     }
   },
-  "$id": "urn:retrace:schema:result_contract:2",
+  "$id": "urn:retrace:schema:result_contract_draft:2",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "A versioned, hashed scientific declaration (RX-03, RX-04, RX-12, RX-47).\n\nField names follow the recovered original (closure section 2): ``version``\n(was ``contract_version``), ``inputs`` (was ``reference_inputs``),\n``limitations`` (was ``known_limits``) and ``approval_ref`` (was an embedded\n``approval``). ``contract_id``, ``tenant_id``, ``project_id``, ``status``\nand ``reference_kind`` are additions the original required and the\nreconstruction had lost.\n\nInvariants enforced at construction, each with a negative control in\n``tests/contracts/test_result_contract.py``:\n\n* ``limitations`` is non-empty. The original does not require this; it is\n  deliberately stricter, because a contract that states no limits claims\n  the declaration has no boundary, which is never true of a real result.\n* ``output_definitions`` and ``inputs`` are non-empty. There is nothing to\n  reproduce without an output, and nothing to pin without an input.\n* output names, input ids, exclusion ids and required check ids are each\n  unique.\n* every key of ``units`` and of ``comparison.tolerances`` names a declared\n  output -- a tolerance for an output that does not exist is dead\n  declaration that reads as coverage.\n* ``units[name]`` agrees with that output's own ``unit`` when both are\n  given (RX-13: unit mismatch is a failure, never a conversion).\n* every numeric output has a declared tolerance; without one the verifier\n  has no admissible comparison and would have to invent a threshold.\n* ``status == APPROVED`` requires a non-empty ``approval_ref``. This is the\n  original's conditional, and it means an approved contract always names\n  the ledger record that approved it.\n\nImmutability: sequence fields are ``tuple`` so they cannot be appended to\nafter construction. ``units`` and ``comparison.tolerances`` are ``dict``\nbecause RX-03 specifies a mapping, and pydantic cannot freeze a dict in\nplace -- see :attr:`KNOWN_SHAPE_LIMITS`.",
+  "description": "The EXTERNAL create/update payload for a result contract (RX-10, RX-47).\n\nThis is a security boundary, not a convenience type. Every field in\n:data:`SERVER_ESTABLISHED_FIELDS` is absent here, and ``FrozenRecord`` sets\n``extra=\"forbid\"``, so a client that submits ``tenant_id`` (choosing which\ntenant's rows it joins, defeating the RLS proven in ``tests/postgres``) or\n``status=\"APPROVED\"`` (claiming its own authority) is **refused** rather\nthan having the field quietly dropped. Dropping would be worse than\nrefusing: the client would be told its submission succeeded while the value\nit cared about was discarded.\n\nThe draft is held to the same scientific invariants as the persisted record\nvia :func:`_check_declaration_consistency`, so a malformed declaration is\nrefused at the boundary rather than after persistence.\n\nUse :func:`persist_contract_draft` to combine a draft with the\nserver-established values and obtain a :class:`ResultContract`.",
   "properties": {
-    "approval_ref": {
-      "anyOf": [
-        {
-          "maxLength": 128,
-          "minLength": 1,
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Reference to the approval ledger record (RX-04/RX-05), or None. A reference rather than an embedded approval: an approval binds this contract's hash and so cannot be a recursive part of it.",
-      "title": "Approval Ref"
-    },
     "comparison": {
       "$ref": "#/$defs/ComparisonSpec",
       "description": "Comparison algorithm and tolerances."
     },
-    "contract_id": {
-      "description": "Stable identity, independent of the content hash. Server-established.",
-      "maxLength": 128,
-      "minLength": 1,
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
-      "title": "Contract Id",
-      "type": "string"
-    },
     "created_by": {
-      "description": "Identity of the contract author.",
+      "description": "Identity the author claims. Server-side authentication is the authority.",
       "maxLength": 4096,
       "minLength": 1,
       "title": "Created By",
@@ -373,7 +339,7 @@
       "description": "Expected record count and selection rule."
     },
     "project_id": {
-      "description": "Owning project within the tenant.",
+      "description": "Project the contract belongs to. Authorised server-side against the caller.",
       "maxLength": 128,
       "minLength": 1,
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
@@ -420,18 +386,6 @@
       "default": null,
       "description": "Declared split, or None."
     },
-    "status": {
-      "$ref": "#/$defs/ContractStatus",
-      "description": "Lifecycle status. Server-established from the approval ledger (RX-04)."
-    },
-    "tenant_id": {
-      "description": "Owning tenant. The key tenant isolation is enforced on (RX-47, RX-49).",
-      "maxLength": 128,
-      "minLength": 1,
-      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:+-]*$",
-      "title": "Tenant Id",
-      "type": "string"
-    },
     "units": {
       "additionalProperties": {
         "type": "string"
@@ -441,18 +395,15 @@
       "type": "object"
     },
     "version": {
-      "description": "Monotonic revision of this scientific declaration. Distinct from SCHEMA_VERSION, which versions the document shape.",
+      "description": "Monotonic revision of this scientific declaration.",
       "minimum": 1,
       "title": "Version",
       "type": "integer"
     }
   },
   "required": [
-    "contract_id",
-    "tenant_id",
     "project_id",
     "version",
-    "status",
     "reference_kind",
     "inputs",
     "output_definitions",
@@ -462,9 +413,9 @@
     "limitations",
     "created_by"
   ],
-  "title": "ResultContract",
+  "title": "ResultContractDraft",
   "type": "object",
   "x-retrace-generated-by": "retrace_contracts.export_schemas",
-  "x-retrace-requirement": "RX-03",
-  "x-retrace-source-model": "retrace_contracts.result_contract.ResultContract"
+  "x-retrace-requirement": "RX-10",
+  "x-retrace-source-model": "retrace_contracts.result_contract.ResultContractDraft"
 }

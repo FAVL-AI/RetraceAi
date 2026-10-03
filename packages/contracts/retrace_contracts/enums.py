@@ -13,10 +13,21 @@ Requirement coverage:
 * :class:`ExecutionStatus` -- RX-11 (execution status is a separate type).
 * :class:`CheckStatus` -- RX-12, RX-17 (a check can be blocked for missing
   evidence; blocked is not failed and is never a pass).
+* :class:`ContractStatus` -- RX-03, RX-04 (a contract's lifecycle status, set by
+  the server from the approval ledger).
+* :class:`ReferenceKind` -- RX-12, RX-17 (what kind of reference a contract is
+  judged against, and whether a pass is admissible at all).
 * :class:`MethodologyAspect` -- RX-14 (a changed methodology is reported as a
   named delta, not folded into a numeric difference).
 * :class:`UIPlanRejectionReason` -- RX-22, RX-23 (a refused plan carries a
   specific, machine-readable reason).
+
+A fifth separate attribute is deliberately absent from all of these: **data
+provenance**. ``SYNTHETIC`` is not a :class:`ReferenceKind`, not an
+:class:`ExecutionStatus` and not a :class:`VerificationOutcome`. Data
+provenance, proposal provenance, execution state and verification outcome are
+four independent questions, and collapsing any two of them into one enum is how
+"synthetic fixture data" silently becomes "no reference exists".
 
 """
 
@@ -26,9 +37,11 @@ from enum import Enum
 
 __all__ = [
     "CheckStatus",
+    "ContractStatus",
     "ExecutionStatus",
     "MethodologyAspect",
     "OutputKind",
+    "ReferenceKind",
     "UIPlanRejectionReason",
     "VerificationOutcome",
 ]
@@ -119,6 +132,80 @@ class CheckStatus(str, Enum):
         return self.value
 
 
+class ContractStatus(str, Enum):
+    """Lifecycle status of a :class:`~retrace_contracts.ResultContract` (RX-03, RX-04).
+
+    Adopted verbatim from the recovered original schema. The status is
+    **server-established from the approval ledger**: a client-supplied
+    ``"APPROVED"`` establishes nothing, which is why the external draft payload
+    cannot carry this field at all.
+
+    Members
+    -------
+    DRAFT:
+        Authored but not approved. Nothing may be accepted against it (RX-04).
+    APPROVED:
+        An approval ledger record exists, and the contract names it in
+        ``approval_ref``. The model refuses ``APPROVED`` without one.
+    SUPERSEDED:
+        Replaced by a later version. Kept because evidence already references
+        it; frozen evidence is versioned, never silently edited (RX-52).
+    """
+
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    SUPERSEDED = "SUPERSEDED"
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return self.value
+
+
+class ReferenceKind(str, Enum):
+    """What kind of reference a contract is judged against (RX-12, RX-17).
+
+    Exactly the three values of the recovered original, retained verbatim: no
+    replacement vocabulary was invented, and in particular **``SYNTHETIC`` is
+    not a member**. Whether the data is synthetic is a provenance question about
+    the data, not a statement about whether a numerical reference exists.
+
+    Members
+    -------
+    HISTORICAL_REFERENCE:
+        Identified prior evidence. The label alone proves nothing: the
+        referenced artefact needs resolvable, integrity-checked, approved
+        provenance before a reproduction claim rests on it.
+    NEW_TEACHING_REFERENCE:
+        An explicitly established teaching baseline. Must never be described as
+        reproducing a published result.
+    NO_REFERENCE:
+        No numerical reference exists. ``REPRODUCED_WITHIN_CONTRACT`` is then
+        inadmissible -- see :attr:`permits_reproduced_outcome`.
+    """
+
+    HISTORICAL_REFERENCE = "HISTORICAL_REFERENCE"
+    NEW_TEACHING_REFERENCE = "NEW_TEACHING_REFERENCE"
+    NO_REFERENCE = "NO_REFERENCE"
+
+    @property
+    def permits_reproduced_outcome(self) -> bool:
+        """Whether ``REPRODUCED_WITHIN_CONTRACT`` is admissible (RX-12, RX-17).
+
+        ``False`` exactly for ``NO_REFERENCE``. With no reference there is
+        nothing a result could have been reproduced *against*, so the pass
+        outcome is inadmissible rather than merely unlikely. Checks that need no
+        reference may still run and report ``EXECUTED_NOT_VERIFIED`` or
+        ``BLOCKED_MISSING_EVIDENCE``.
+
+        Expressed once, here, so that every caller consults the same rule
+        instead of re-testing ``is ReferenceKind.NO_REFERENCE`` at each site --
+        a rule re-implemented per site is a rule that can be forgotten at one.
+        """
+        return self is not ReferenceKind.NO_REFERENCE
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return self.value
+
+
 class OutputKind(str, Enum):
     """What kind of thing a declared contract output is (RX-03, RX-13).
 
@@ -161,6 +248,13 @@ class MethodologyAspect(str, Enum):
     The member set is closed over the methodology-bearing fields of
     :class:`retrace_contracts.result_contract.ResultContract`, so a declared
     delta always names a field a reviewer can go and read.
+
+    Naming note: ``REFERENCE_INPUTS`` names the contract field now spelled
+    ``inputs``. The field was renamed to the recovered original's name (closure
+    section 2); the aspect member keeps its spelling because it is a published
+    vocabulary the verifier emits into reports, and renaming it would silently
+    change the meaning of stored deltas. The mapping is recorded here rather
+    than left to be inferred.
     """
 
     REFERENCE_INPUTS = "REFERENCE_INPUTS"

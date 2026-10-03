@@ -31,6 +31,7 @@ from retrace_contracts import (  # noqa: E402
     CheckResult,
     CheckStatus,
     ComparisonSpec,
+    ContractStatus,
     EnvironmentManifest,
     EvidenceBundleManifest,
     ExclusionRule,
@@ -39,9 +40,11 @@ from retrace_contracts import (  # noqa: E402
     OutputKind,
     Population,
     ReferenceInput,
+    ReferenceKind,
     RepairProposal,
     ResourceRef,
     ResultContract,
+    ResultContractDraft,
     RunRecord,
     SplitSpec,
     Tolerance,
@@ -74,12 +77,37 @@ def digest(seed: str) -> str:
     return hashlib.sha256(seed.encode("utf-8")).hexdigest()
 
 
-def build_contract(**overrides: Any) -> ResultContract:
-    """Build a minimal but complete, internally consistent ResultContract (RX-03)."""
-    fields: dict[str, Any] = {
-        "reference_inputs": (
+#: Server-established values for the fixture contract. Kept separate from the
+#: declaration so that `build_draft` and `build_contract` cannot drift: the
+#: draft is exactly the declaration, and the contract is the declaration plus
+#: these. See `retrace_contracts.result_contract.SERVER_ESTABLISHED_FIELDS`.
+SERVER_ESTABLISHED: dict[str, Any] = {
+    "contract_id": "rc-0001",
+    "tenant_id": "tenant-0001",
+    "status": ContractStatus.DRAFT,
+}
+
+
+def declaration_fields() -> dict[str, Any]:
+    """Return the client-authorable half of a fixture contract (RX-03).
+
+    ``reference_kind`` is ``NEW_TEACHING_REFERENCE``, not
+    ``HISTORICAL_REFERENCE``: the fixture data is synthetic, so there is no
+    identified prior published evidence to reference, and the matching
+    ``limitations`` entry says so. It is not ``NO_REFERENCE`` either -- the
+    fixture does establish an explicit baseline to compare against. This is the
+    distinction recorded in `SPEC_RECONCILIATION_CLOSURE.md` section 4, where
+    ``SYNTHETIC`` is deliberately *not* a ``reference_kind``: whether the data
+    is synthetic is a provenance fact about the data, not a statement about
+    whether a reference exists.
+    """
+    return {
+        "project_id": "proj-penguins",
+        "version": 1,
+        "reference_kind": ReferenceKind.NEW_TEACHING_REFERENCE,
+        "inputs": (
             ReferenceInput(
-                path="data/penguins_synthetic.csv",
+                id="data/penguins_synthetic.csv",
                 sha256=digest("reference-input"),
                 role="raw-measurements",
             ),
@@ -108,13 +136,25 @@ def build_contract(**overrides: Any) -> ResultContract:
             tolerances={"mean_body_mass": Tolerance(abs_tol=1e-6, rel_tol=1e-9)},
         ),
         "required_checks": ("chk.population-count", "chk.mean-body-mass"),
-        "known_limits": (
+        "limitations": (
             "SYNTHETIC fixture data; establishes nothing about any published dataset.",
             "Single-machine execution; no cross-platform numerical agreement claimed.",
         ),
-        "contract_version": 1,
         "created_by": AUTHOR,
     }
+
+
+def build_draft(**overrides: Any) -> ResultContractDraft:
+    """Build the EXTERNAL create payload for the fixture contract (RX-10, RX-47)."""
+    fields = declaration_fields()
+    fields.update(overrides)
+    return ResultContractDraft(**fields)
+
+
+def build_contract(**overrides: Any) -> ResultContract:
+    """Build a minimal but complete, internally consistent ResultContract (RX-03)."""
+    fields = declaration_fields()
+    fields.update(SERVER_ESTABLISHED)
     fields.update(overrides)
     return ResultContract(**fields)
 
@@ -331,6 +371,12 @@ ALLOWLISTS = UIAllowlists(
 def contract_factory() -> Callable[..., ResultContract]:
     """Factory for internally consistent result contracts."""
     return build_contract
+
+
+@pytest.fixture
+def draft_factory() -> Callable[..., ResultContractDraft]:
+    """Factory for the external create/update payload (RX-10)."""
+    return build_draft
 
 
 @pytest.fixture

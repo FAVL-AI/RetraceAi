@@ -33,7 +33,7 @@ from pydantic import BaseModel
 from .approval import Approval
 from .evidence_bundle import EvidenceBundleManifest
 from .repair import RepairProposal
-from .result_contract import ResultContract
+from .result_contract import SCHEMA_VERSION, ResultContract, ResultContractDraft
 from .ui_plan import UIPlan
 
 __all__ = [
@@ -48,6 +48,7 @@ __all__ = [
 
 SCHEMA_EXPORTS: Final[tuple[tuple[str, type[BaseModel], str], ...]] = (
     ("result_contract.schema.json", ResultContract, "RX-03"),
+    ("result_contract_draft.schema.json", ResultContractDraft, "RX-10"),
     ("repair_proposal.schema.json", RepairProposal, "RX-06"),
     ("approval.schema.json", Approval, "RX-05"),
     ("evidence_bundle_manifest.schema.json", EvidenceBundleManifest, "RX-15"),
@@ -56,6 +57,18 @@ SCHEMA_EXPORTS: Final[tuple[tuple[str, type[BaseModel], str], ...]] = (
 """The exported schemas: filename, source model, and the requirement it serves."""
 
 _JSON_SCHEMA_DIALECT: Final[str] = "https://json-schema.org/draft/2020-12/schema"
+
+_DOCUMENT_VERSIONS: Final[dict[str, int]] = {
+    "result_contract": SCHEMA_VERSION,
+    "result_contract_draft": SCHEMA_VERSION,
+}
+"""Document-shape version per schema stem; absent stems are version ``1``.
+
+The result-contract pair carries
+:data:`retrace_contracts.result_contract.SCHEMA_VERSION`, so the constant that
+documents the document shape is the same one stamped into the ``$id``. A
+version recorded only in a docstring is a version nothing checks.
+"""
 
 
 def default_output_directory() -> Path:
@@ -73,14 +86,16 @@ def build_schema(filename: str, model: type[BaseModel], requirement: str) -> dic
 
     The ``$id`` is a URN, not an HTTP URL: these schemas are not published at a
     resolvable address in this build, and inventing one would be a claim about
-    infrastructure that does not exist.
+    infrastructure that does not exist. Its trailing segment is the DOCUMENT
+    SHAPE version from :data:`_DOCUMENT_VERSIONS`, never a contract's own
+    scientific ``version``.
     """
     schema: dict[str, Any] = model.model_json_schema(
         mode="validation", ref_template="#/$defs/{model}"
     )
     stem = filename.split(".", 1)[0]
     schema["$schema"] = _JSON_SCHEMA_DIALECT
-    schema["$id"] = f"urn:retrace:schema:{stem}:1"
+    schema["$id"] = f"urn:retrace:schema:{stem}:{_DOCUMENT_VERSIONS.get(stem, 1)}"
     schema.setdefault("title", model.__name__)
     schema["x-retrace-requirement"] = requirement
     schema["x-retrace-source-model"] = f"{model.__module__}.{model.__qualname__}"

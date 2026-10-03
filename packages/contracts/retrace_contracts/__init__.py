@@ -13,6 +13,9 @@ Unit                               Requirement
 :class:`VerificationOutcome`       RX-12 -- exactly five outcomes
 :class:`ExecutionStatus`           RX-11 -- execution status is a separate type
 :class:`ResultContract`            RX-03 -- versioned, hashed declaration
+:class:`ResultContractDraft`       RX-10, RX-47 -- external payload boundary
+:class:`ContractStatus`            RX-04 -- server-established lifecycle
+:class:`ReferenceKind`             RX-12, RX-17 -- NO_REFERENCE is not a pass
 :class:`Approval`                  RX-05 -- five-field binding
 :class:`RepairProposal`            RX-06, RX-56 -- a diff, never file content
 :class:`CheckResult`               RX-12, RX-13 -- per-check evidence
@@ -39,9 +42,11 @@ from .canonical import (
 )
 from .enums import (
     CheckStatus,
+    ContractStatus,
     ExecutionStatus,
     MethodologyAspect,
     OutputKind,
+    ReferenceKind,
     UIPlanRejectionReason,
     VerificationOutcome,
 )
@@ -66,14 +71,20 @@ from .exceptions import (
 from .paths import is_safe_relative_path, validate_relative_path
 from .repair import MAX_DIFF_BYTES, RepairProposal, parse_unified_diff_targets
 from .result_contract import (
+    SCHEMA_VERSION as RESULT_CONTRACT_SCHEMA_VERSION,
+)
+from .result_contract import (
+    SERVER_ESTABLISHED_FIELDS,
     ComparisonSpec,
     ExclusionRule,
     OutputDefinition,
     Population,
     ReferenceInput,
     ResultContract,
+    ResultContractDraft,
     SplitSpec,
     Tolerance,
+    persist_contract_draft,
 )
 from .ui_plan import PROTECTED_REGION_IDS, UIAllowlists, UIComponent, UIPlan, validate_ui_plan
 from .verification import CheckResult, MethodologyDelta, RunRecord, VerificationReport
@@ -92,6 +103,7 @@ __all__ = [
     "ComparisonSpec",
     "ContractImmutable",
     "ContractNotApproved",
+    "ContractStatus",
     "EnvironmentManifest",
     "EvidenceBundleManifest",
     "ExclusionRule",
@@ -107,14 +119,18 @@ __all__ = [
     "OutputKind",
     "PROTECTED_REGION_IDS",
     "Population",
+    "RESULT_CONTRACT_SCHEMA_VERSION",
     "RO_CRATE_1_1_CONTEXT",
     "RO_CRATE_1_1_PROFILE",
     "ReferenceInput",
+    "ReferenceKind",
     "RepairProposal",
     "ResourceRef",
     "ResultContract",
+    "ResultContractDraft",
     "RetraceContractError",
     "RunRecord",
+    "SERVER_ESTABLISHED_FIELDS",
     "Sha256Hex",
     "SnapshotIntegrityError",
     "SplitSpec",
@@ -134,6 +150,7 @@ __all__ = [
     "canonicalise",
     "is_safe_relative_path",
     "parse_unified_diff_targets",
+    "persist_contract_draft",
     "sha256_hex",
     "validate_relative_path",
     "validate_ui_plan",

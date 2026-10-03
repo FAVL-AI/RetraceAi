@@ -28,6 +28,7 @@ from retrace_contracts import (
     ApprovalInvalidated,
     ContractNotApproved,
     ExecutionStatus,
+    ReferenceKind,
     RunRecord,
     VerificationOutcome,
 )
@@ -186,7 +187,7 @@ def approved(tmp_path: Path, references: ReferenceStore, contract_factory):
     reference = references.write_json(
         "outputs.json", {"outputs": {"mean_mass": {"value": EXPECTED_MEAN, "unit": "g"}}}
     )
-    contract = contract_factory(reference_inputs=(reference,), population_count=len(MASSES))
+    contract = contract_factory(inputs=(reference,), population_count=len(MASSES))
     ledger.record_contract_approval(
         approval=Approval(
             approval_id="ap-contract-1",
@@ -418,7 +419,7 @@ def test_case3_missing_reference_stays_blocked(
     declared = references.declare_without_writing(
         "outputs.json", json.dumps({"outputs": {}}).encode("utf-8")
     )
-    contract = contract_factory(reference_inputs=(declared,), population_count=len(MASSES))
+    contract = contract_factory(inputs=(declared,), population_count=len(MASSES))
     outputs = tmp_path / "outputs.json"
     outputs.write_text(
         json.dumps({"outputs": {"mean_mass": {"value": EXPECTED_MEAN, "unit": "g"}}}),
@@ -519,3 +520,78 @@ def test_provider_abstains_rather_than_change_scientific_meaning(
     assert proposal is None, "the provider proposed a patch for a meaning-changing fault"
     assert provider.abstention_log, "abstained without recording a reason"
     assert provider.abstention_log[-1].reason in set(AbstentionReason)
+
+
+# ========================================================================== #
+# CASE 4 - reference_kind governs what may be CLAIMED
+# ========================================================================== #
+@pytest.mark.parametrize(
+    ("kind", "permitted"),
+    [
+        (ReferenceKind.HISTORICAL_REFERENCE, True),
+        (ReferenceKind.NEW_TEACHING_REFERENCE, True),
+        (ReferenceKind.NO_REFERENCE, False),
+    ],
+    ids=["historical", "new-teaching", "none"],
+)
+def test_case4_no_reference_can_never_be_reported_as_reproduced(
+    references: ReferenceStore, tmp_path: Path, contract_factory, kind, permitted
+) -> None:
+    """A NO_REFERENCE contract must never yield REPRODUCED_WITHIN_CONTRACT.
+
+    This was a LIVE DEFECT: the contracts layer exposed
+    `permits_reproduced_outcome` but the verifier did not consult it, so a
+    contract declaring it had no reference still reported a reproduction when the
+    numbers happened to agree. Fixed in `_select_outcome`.
+
+    The parametrisation is the discrimination control. Two of the three kinds DO
+    reach REPRODUCED from identical inputs, so a clamp that simply refused
+    everything - or a fixture too weak to reach a pass at all - would fail here
+    rather than look like success.
+    """
+    reference = references.write_json(
+        "outputs.json", {"outputs": {"mean_mass": {"value": EXPECTED_MEAN, "unit": "g"}}}
+    )
+    contract = contract_factory(
+        inputs=(reference,), population_count=len(MASSES), reference_kind=kind
+    )
+    assert contract.permits_reproduced_outcome is permitted
+
+    outputs = tmp_path / "outputs.json"
+    outputs.write_text(
+        json.dumps(
+            {
+                "outputs": {"mean_mass": {"value": EXPECTED_MEAN, "unit": "g"}},
+                "methodology": {
+                    "exclusions": [],
+                    "seed": SEED,
+                    "population": {"count": len(MASSES), "selection_rule": RULE},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    report = verify(
+        outputs,
+        contract,
+        FilesystemReferenceReader(references.root),
+        run_record=RunRecord(
+            run_id=f"case4-{kind.value}",
+            snapshot_id="s" * 64,
+            runner_identity="retrace-runner",
+            environment_policy_digest="e" * 64,
+            execution_status=ExecutionStatus.SUCCEEDED,
+            started_at=FIXED_MOMENT,
+            finished_at=FIXED_MOMENT,
+            exit_code=0,
+        ),
+        verified_at=FIXED_MOMENT,
+    )
+    if permitted:
+        assert report.outcome is VerificationOutcome.REPRODUCED_WITHIN_CONTRACT, report.reason
+    else:
+        assert report.outcome is not VerificationOutcome.REPRODUCED_WITHIN_CONTRACT, (
+            "a contract declaring NO_REFERENCE was reported as reproduced"
+        )
+        assert report.outcome is VerificationOutcome.EXECUTED_NOT_VERIFIED, report.reason
+        assert "NO_REFERENCE" in report.reason

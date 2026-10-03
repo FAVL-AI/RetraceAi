@@ -24,6 +24,7 @@ import pytest
 from retrace_contracts import (
     Attestation,
     ComparisonSpec,
+    ContractStatus,
     EnvironmentManifest,
     ExclusionRule,
     ExecutionStatus,
@@ -31,6 +32,7 @@ from retrace_contracts import (
     OutputKind,
     Population,
     ReferenceInput,
+    ReferenceKind,
     ResultContract,
     RunRecord,
     SplitSpec,
@@ -101,7 +103,7 @@ class ReferenceStore:
         target.parent.mkdir(parents=True, exist_ok=True)
         data = json.dumps(payload, sort_keys=True).encode("utf-8")
         target.write_bytes(data)
-        return ReferenceInput(path=relative, sha256=sha256_hex(data), role=role)
+        return ReferenceInput(id=relative, sha256=sha256_hex(data), role=role)
 
     def write_bytes(
         self, relative: str, data: bytes, *, role: str = REFERENCE_OUTPUT_ROLE
@@ -110,13 +112,13 @@ class ReferenceStore:
         target = self.root / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(data)
-        return ReferenceInput(path=relative, sha256=sha256_hex(data), role=role)
+        return ReferenceInput(id=relative, sha256=sha256_hex(data), role=role)
 
     def declare_without_writing(
         self, relative: str, data: bytes, *, role: str = REFERENCE_OUTPUT_ROLE
     ) -> ReferenceInput:
         """Return a contract input pinning bytes that are **not** on disk (RX-17)."""
-        return ReferenceInput(path=relative, sha256=sha256_hex(data), role=role)
+        return ReferenceInput(id=relative, sha256=sha256_hex(data), role=role)
 
 
 @pytest.fixture
@@ -129,7 +131,7 @@ def references(tmp_path: Path) -> ReferenceStore:
 
 def make_contract(
     *,
-    reference_inputs: Sequence[ReferenceInput] = (),
+    inputs: Sequence[ReferenceInput] = (),
     outputs: Sequence[OutputDefinition] | None = None,
     units: Mapping[str, str] | None = None,
     tolerances: Mapping[str, Tolerance] | None = None,
@@ -139,8 +141,18 @@ def make_contract(
     required_checks: Sequence[str] = (),
     population_count: int = 333,
     selection_rule: str = "complete cases only",
-    known_limits: Sequence[str] = ("SYNTHETIC fixture; establishes nothing about real data.",),
-    contract_version: int = 1,
+    limitations: Sequence[str] = ("SYNTHETIC fixture; establishes nothing about real data.",),
+    version: int = 1,
+    # The fixture data is synthetic and references no published result, so it is a
+    # newly established teaching baseline - not HISTORICAL_REFERENCE, and not
+    # NO_REFERENCE (it does establish a baseline). SYNTHETIC is a data-provenance
+    # attribute and is deliberately NOT a reference_kind.
+    reference_kind: ReferenceKind = ReferenceKind.NEW_TEACHING_REFERENCE,
+    status: ContractStatus = ContractStatus.DRAFT,
+    approval_ref: str | None = None,
+    contract_id: str = "contract-fixture-1",
+    tenant_id: str = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    project_id: str = "project-fixture-1",
 ) -> ResultContract:
     """Build a valid :class:`~retrace_contracts.ResultContract` for a test.
 
@@ -158,7 +170,7 @@ def make_contract(
         if definition.kind.is_numeric and definition.name not in resolved_tolerances:
             resolved_tolerances[definition.name] = Tolerance(abs_tol=0.01)
     return ResultContract(
-        reference_inputs=tuple(reference_inputs),
+        inputs=tuple(inputs),
         output_definitions=definitions,
         population=Population(expected_count=population_count, selection_rule=selection_rule),
         units=dict(units) if units is not None else {},
@@ -169,8 +181,14 @@ def make_contract(
             algorithm="elementwise-abs-rel", tolerances=resolved_tolerances
         ),
         required_checks=tuple(required_checks),
-        known_limits=tuple(known_limits),
-        contract_version=contract_version,
+        limitations=tuple(limitations),
+        version=version,
+        reference_kind=reference_kind,
+        status=status,
+        approval_ref=approval_ref,
+        contract_id=contract_id,
+        tenant_id=tenant_id,
+        project_id=project_id,
         created_by="test-operator",
     )
 
