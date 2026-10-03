@@ -41,6 +41,7 @@ from typing import Annotated, ClassVar, Final
 from pydantic import Field, field_validator, model_validator
 
 from .base import FrozenRecord, Identifier, NonEmptyStr, Sha256Hex
+from .canonical import canonical_digest
 from .enums import ContractStatus, OutputKind, ReferenceKind
 from .exceptions import ContractNotApproved
 from .paths import validate_relative_path
@@ -425,6 +426,25 @@ class ResultContract(FrozenRecord):
     CANONICAL_TYPE_TAG: ClassVar[str] = "retrace.ResultContract"
     CANONICAL_EXCLUDE: ClassVar[frozenset[str]] = frozenset()
 
+    #: Fields that are LIFECYCLE METADATA rather than scientific declaration, and
+    #: are therefore excluded from :attr:`declaration_digest`.
+    #:
+    #: WHY THIS EXISTS. `contract_hash` covers every field, including `status` and
+    #: `approval_ref`. That is correct for audit - any change at all is visible -
+    #: but it makes the lifecycle transition destroy the identity of the thing
+    #: being approved: a DRAFT, the same contract APPROVED, and the same contract
+    #: SUPERSEDED produce three different `contract_hash` values. An Approval that
+    #: bound the DRAFT hash then matches nothing once the record it approved is
+    #: marked APPROVED, so approving a contract would invalidate the very approval
+    #: it records.
+    #:
+    #: The same science, differently labelled, is the same science. So approvals
+    #: bind `declaration_digest`, which covers the declaration and not its label.
+    #: Changing ANY declared field - an input, a tolerance, an exclusion, the seed,
+    #: the reference kind, the version - still changes it and still invalidates the
+    #: approval, which is the property that matters.
+    DECLARATION_EXCLUDE: ClassVar[frozenset[str]] = frozenset({"status", "approval_ref"})
+
     KNOWN_SHAPE_LIMITS: ClassVar[tuple[str, ...]] = (
         "`units` and `comparison.tolerances` are dicts, so they are only "
         "shallow-immutable: mutating one in place after construction changes "
@@ -434,11 +454,15 @@ class ResultContract(FrozenRecord):
         "`contract_hash` covers declared content only. It is not a signature "
         "and asserts nothing about who authored or approved the contract.",
         "`contract_hash` covers `status` and `approval_ref`, so moving a "
-        "contract from DRAFT to APPROVED changes its hash. An approval binds "
-        "the hash of the declaration it judged, so the ledger must compare "
-        "against the hash recorded at approval time and must NOT re-derive it "
-        "from the approved record. See `permits_reproduced_outcome` for the "
-        "other authority property a caller must consult rather than re-derive.",
+        "contract from DRAFT to APPROVED changes it. That is intended for audit "
+        "- any change at all stays visible - and it is why approvals bind "
+        "`declaration_digest` instead, which excludes the lifecycle label and is "
+        "therefore stable across DRAFT -> APPROVED -> SUPERSEDED while still "
+        "changing on any edit to the declaration. Binding `contract_hash` would "
+        "mean approving a contract invalidated the approval it recorded.",
+        "`declaration_digest` is NOT a signature either. It establishes that two "
+        "declarations are the same declaration; it says nothing about who "
+        "approved one, which is the ledger's job.",
         "`status` is a server-established mirror of the approval ledger, not an "
         "independent authority. A record whose status says APPROVED but whose "
         "`approval_ref` does not resolve in the ledger is not approved; this "
@@ -525,6 +549,21 @@ class ResultContract(FrozenRecord):
         disagrees with its own content.
         """
         return self.content_digest()
+
+    @property
+    def declaration_digest(self) -> str:
+        """Digest of the scientific DECLARATION, excluding its lifecycle label.
+
+        This is what an :class:`~retrace_contracts.Approval` binds. See
+        :attr:`DECLARATION_EXCLUDE` for why it is not ``contract_hash``.
+
+        Stable across ``DRAFT -> APPROVED -> SUPERSEDED`` and across setting
+        ``approval_ref``; changed by any edit to the declaration itself.
+        """
+        payload = self.canonical_payload()
+        for name in type(self).DECLARATION_EXCLUDE:
+            payload.pop(name, None)
+        return canonical_digest(payload, type_tag=f"{self.canonical_type_tag()}#declaration")
 
     @property
     def permits_reproduced_outcome(self) -> bool:

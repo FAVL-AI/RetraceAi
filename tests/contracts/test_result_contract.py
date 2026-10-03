@@ -366,20 +366,21 @@ def test_changing_approval_ref_changes_the_hash_without_hashing_the_approval() -
 
 
 def test_approving_a_contract_changes_its_contract_hash() -> None:
-    """Consequence of closure section 6, recorded rather than discovered later.
+    """`status` and `approval_ref` are hashed content, so the lifecycle moves it.
 
-    `status` and `approval_ref` are both hashed content, so the APPROVED record
-    does not share a digest with the DRAFT the approval was granted against. An
-    Approval binds the hash of the declaration it judged, which means the ledger
-    must compare against the hash recorded at approval time and must NOT
-    re-derive it from the approved record. This test exists so that the
-    consequence is visible at this layer; closing it is an integration decision
-    for the domain layer, which owns the ledger.
+    This was originally recorded as an open consequence, with the guidance that
+    the ledger must compare against the hash captured at approval time. That
+    guidance has been SUPERSEDED by a fix rather than left as a caller
+    obligation: approvals bind `declaration_digest`, which excludes the lifecycle
+    label. The assertion here now checks the BEHAVIOUR - audit still sees the
+    change, and the declaration's identity survives it - instead of asserting
+    the wording of a limitation note, which is an implementation detail of the
+    documentation and the wrong thing for a test to pin.
     """
     draft_state = build_contract(status=ContractStatus.DRAFT)
     approved_state = build_contract(status=ContractStatus.APPROVED, approval_ref="ap-0001")
     assert draft_state.contract_hash != approved_state.contract_hash
-    assert any("recorded at approval time" in limit for limit in ResultContract.KNOWN_SHAPE_LIMITS)
+    assert draft_state.declaration_digest == approved_state.declaration_digest
 
 
 # --------------------------------------------------------------------------- #
@@ -704,3 +705,74 @@ def test_the_draft_digests_under_its_own_type_tag() -> None:
     assert draft.canonical_type_tag() == "retrace.ResultContractDraft"
     assert contract.canonical_type_tag() == "retrace.ResultContract"
     assert draft.content_digest() != contract.contract_hash
+
+
+# --------------------------------------------------------------------------- #
+# declaration_digest - what an approval binds (RX-03, RX-05)
+#
+# The reconciliation made `approval_ref` and `status` plain hashed content, which
+# meant DRAFT, APPROVED and SUPERSEDED versions of one contract had three
+# different `contract_hash` values - so an approval binding the DRAFT hash
+# matched nothing once the record it approved was marked APPROVED. Approving a
+# contract would have invalidated the approval it recorded. `declaration_digest`
+# excludes the lifecycle label; `contract_hash` still covers everything for audit.
+# --------------------------------------------------------------------------- #
+def test_the_declaration_digest_is_stable_across_the_lifecycle(
+    contract_factory,
+) -> None:
+    """DRAFT -> APPROVED -> SUPERSEDED is the same declaration throughout."""
+    draft = contract_factory()
+    approved = contract_factory(status=ContractStatus.APPROVED, approval_ref="ap-1")
+    superseded = contract_factory(status=ContractStatus.SUPERSEDED, approval_ref="ap-1")
+    assert draft.declaration_digest == approved.declaration_digest
+    assert approved.declaration_digest == superseded.declaration_digest
+
+
+def test_contract_hash_still_changes_across_the_lifecycle(contract_factory) -> None:
+    """DISCRIMINATION CONTROL: the two digests must not be the same thing.
+
+    If `contract_hash` were also stable here, `declaration_digest` would be
+    redundant and this file would be testing nothing. Audit wants every change
+    visible; approval wants the declaration's identity. Both, separately.
+    """
+    draft = contract_factory()
+    approved = contract_factory(status=ContractStatus.APPROVED, approval_ref="ap-1")
+    assert draft.contract_hash != approved.contract_hash
+    assert draft.declaration_digest != draft.contract_hash
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("version", 2),
+        ("created_by", "someone-else"),
+        ("limitations", ("a different limit",)),
+        ("reference_kind", ReferenceKind.NO_REFERENCE),
+        ("seed", 999),
+        ("population", Population(expected_count=999, selection_rule="all")),
+    ],
+)
+def test_any_declaration_edit_changes_the_declaration_digest(
+    contract_factory, field: str, value: object
+) -> None:
+    """The property that matters: editing the declaration invalidates approval."""
+    before = contract_factory()
+    after = contract_factory(**{field: value})
+    assert before.declaration_digest != after.declaration_digest, (
+        f"editing {field} left the declaration digest unchanged, so an approval "
+        "would survive a change to the material it authorised"
+    )
+
+
+def test_widening_a_tolerance_changes_the_declaration_digest(contract_factory) -> None:
+    """The anti-goalpost-move case, stated separately because it is the one an
+    author has the strongest incentive to attempt after seeing a result."""
+    before = contract_factory()
+    widened = ComparisonSpec(
+        algorithm=before.comparison.algorithm,
+        tolerances={
+            name: Tolerance(abs_tol=99.0) for name in before.comparison.tolerances
+        },
+    )
+    after = contract_factory(comparison=widened)
+    assert before.declaration_digest != after.declaration_digest
