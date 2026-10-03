@@ -107,3 +107,25 @@ test results — not asserted here.
 | RX-55 | `HYPOTHESES`, `EXPERIMENT_DESIGN`, `INITIAL_RESULTS`, `FAILURES`, `REFINEMENTS`, `FURTHER_EXPERIMENTS`, `INSIGHTS`, `CONCLUSIONS` maintained; `NOT_RUN` until executed | Each file present; unexecuted sections state `NOT_RUN` with no placeholder numbers |
 | RX-56 | Injected faults are labelled injected and never attributed as defects in third-party software | Every fixture fault carries an `injected: true` provenance field |
 | RX-57 | Adversarial result-changing variants are not accepted by the verifier | Each variant in the trap set yields `CHANGED_RESULT`; zero accepted |
+
+---
+
+## H. Requirements added to close uncovered originals (see `docs/evidence/SPEC_RECONCILIATION_CLOSURE.md`)
+
+Added after recovering the blueprint archive, which showed the reconstruction had
+silently omitted six whole areas. **All are `NOT_STARTED`**; appearing here means
+they are visible in the ledger, not that anything is implemented.
+
+| ID | Original | Requirement | Acceptance test |
+|---|---|---|---|
+| RX-58 | R18 | Slack: scoped install, channel selection, redacted notifications, verified event signatures, replay dedup; sending research content needs explicit approval | Invalid signature refused; duplicate delivery applied once; unapproved send refused |
+| RX-59 | R19 | Calendar: internal scheduling, Google OAuth, ICS import/export, free-busy within authorised scope only, DST-safe invitations naming both time zones | Spring-forward and fall-back resolve explicitly; ambiguous local time prompts; replayed invite creates no duplicate |
+| RX-60 | R20 | Colab import/export and a reviewed local MCP bridge with its real client requirements; never presented as unattended hosted execution | Round-trip import/export; bridge absent reports NEEDS_CONFIGURATION; no path claims hosted execution |
+| RX-61 | R28 | Backup/restore with a measured RPO/RTO, observability over the documented journey, incident runbook with a named owner | A restore reproduces a known evidence-bundle digest; RPO/RTO measured, never asserted |
+| RX-62 | R30 | Release gate requiring human scientific review by someone who did not build it, plus an independent red team with reproducible findings | Release refuses to advance past REVISE without both records; one agent's review satisfies neither |
+| RX-63 | R31 | Exact version pins, SBOM from the RELEASE ARTEFACTS, per-dependency licence review, cold build from a clean checkout | Cold build yields the expected wheel contents; an unpinned dependency fails the gate |
+| RX-64 | R17 | Share links, and what a shared lineage graph may expose | A shared graph discloses no entity the recipient could not already read |
+| RX-65 | R23 | Export injection: formula/CSV injection neutralised in every exported tabular format | A cell beginning `=`, `+`, `-` or `@` cannot execute in a spreadsheet client |
+| RX-66 | R25 | Encryption at rest, managed key control, and a subject-erasure workflow distinct from destroying scientific evidence | Erasure removes personal data, records what was retained and why, and leaves the evidence chain verifiable |
+| RX-67 | R29 | Rights admission before any dataset is used, and fair benchmark arms held at equal budget and information | An unadmitted dataset cannot be snapshotted; a missing comparison arm blocks the benchmark claim |
+| RX-68 | R32 | A release decision bound to actual executed evidence, naming the profile | The decision cites artefact paths and exit codes; absent evidence forces REVISE or STOP |

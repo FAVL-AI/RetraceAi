@@ -1,6 +1,14 @@
 # Specification reconciliation — R01–R32 vs reconstructed RX-*
 
-Status: **COMPLETE for requirement identity. Schema reconciliation OPEN (section 5).**
+Status: **CORRECTED — see `SPEC_RECONCILIATION_CLOSURE.md`.**
+
+The original status line here claimed completion for requirement identity. That
+**overstated** it: the 32 originals were accounted for, but the schema
+differences were only *described* (section 5) and the six uncovered originals had
+no RX entries at all, so nothing downstream could be built against the mapping.
+Both are closed in `SPEC_RECONCILIATION_CLOSURE.md`, which classifies every field
+difference and adds RX-58..RX-68. This document is retained unedited below for
+provenance.
 
 ## 1. Archive provenance — verified by me, not reported
 
