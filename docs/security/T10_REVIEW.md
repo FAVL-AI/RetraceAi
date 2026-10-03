@@ -18,6 +18,10 @@ From `docs/security/THREAT_MODEL.md`, row T10, quoted verbatim:
 > dishonest-but-consistent method. This limit must be stated in every evidence
 > bundle |
 
+(The "not solvable by this architecture" phrasing in the row above is the text as
+originally written and is retained here for provenance. It is **withdrawn** in the
+Verdict below and corrected in the threat-model table itself.)
+
 ## Affected assets
 
 1. **Scientific truth** — whether a reported finding is correct. This is the asset
@@ -58,6 +62,21 @@ property of verifying conformance rather than correctness.
 
 So two of the three mitigations the threat-model row cites for T10 are **not yet
 implemented**. The row overstates present protection and is corrected by this review.
+
+### No credit for specified-but-unimplemented mitigations
+
+RX-18 and RX-14 are **excluded from the residual-risk assessment entirely**. They
+are design intent, not controls. The exposure is therefore assessed as if they do
+not exist, because today they do not.
+
+| Unimplemented mitigation | Exposure that remains RIGHT NOW | Deployment restriction while unimplemented |
+|---|---|---|
+| RX-18 — notebook self-reported status ignored | Nothing in the running system ignores a notebook's own verdict, because nothing reads notebook output at all yet. A notebook printing a passing verdict would be the ONLY verdict present. Any outcome shown today would be the author's own claim, relabelled | No verification outcome may be displayed, exported, or returned by an API to any party, including the author. No evidence bundle may be issued |
+| RX-14 — methodology delta forces CHANGED_RESULT | No comparison of declared exclusions, seed, split, population or units against the contract exists. A silently altered method would not be flagged by any code path | No contract may be marked satisfied. `REPRODUCED_WITHIN_CONTRACT` must be unreachable in the product until the verifier implements the delta check and its tests pass |
+
+Both restrictions are currently satisfied trivially — there is no UI, no verifier
+and no API — but they must be enforced as gates when those arrive, not re-derived
+then. Each is recorded against its RX id in `docs/REQUIREMENTS.md`.
 
 ## Residual exposure
 
@@ -109,17 +128,31 @@ exactly the property it does not have.
 2. Every evidence bundle must carry this limitation in its `limitations` block —
    enforced structurally today only insofar as the block must be **non-empty**;
    a check that this *specific* limitation is present is **owed and not written**.
-3. Documentation and any UI explanation must state that RETRACE verifies
-   conformance, not correctness.
+3. Documentation, UI copy, API responses and exports must keep **"reproduced
+   within contract"** and **"scientifically validated"** strictly separate. The
+   first is a statement about agreement with declared checks; the second is a
+   claim RETRACE never makes anywhere, in any surface. No synonym of the second
+   ("validated", "confirmed", "verified correct", "trusted result") may appear
+   attached to an outcome.
 4. The release decision must record T10 as a known, accepted, unmitigated residual
    risk with a named owner.
 
 ## Verdict
 
-T10 is an **accepted residual limitation** under the permitted profile above, and
-it is **honestly unsolvable** by this architecture — no amount of further
-engineering inside RETRACE closes it, because the gap is between *conformance* and
-*truth*, not between present and absent controls.
+T10 is an **accepted limitation of this assurance model**, correctly scoped as:
+
+> **Passing a result contract establishes agreement with its declared checks. It
+> does not independently establish the correctness of the reference data, the
+> adequacy of the methodology, or the truth of the scientific conclusion.**
+
+Earlier drafts of this review called the limitation "honestly unsolvable" and said
+the gap was "not solvable by this architecture". **That wording is withdrawn.** It
+overreached: it implied independent scientific validation is impossible in
+general, when the accurate claim is narrower — *this* evidence is insufficient to
+establish it. Independent validation is achievable by means outside contract
+conformance (independent reimplementation, held-out replication, adversarial
+re-analysis, peer review of the method rather than the run). RETRACE does not
+provide those, and must not be read as a substitute for them.
 
 It is **not** currently safe to show a verification outcome to a third party,
 because control 1 is unimplemented (no UI exists) and control 2 is only partially

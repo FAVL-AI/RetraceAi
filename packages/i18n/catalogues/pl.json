@@ -1,0 +1,550 @@
+{
+  "locale": "pl",
+  "review_status": "beta",
+  "reviewer": null,
+  "reviewed_at": null,
+  "notes": "MACHINE-GENERATED, UNREVIEWED (RX-30). review_status is 'beta' and reviewer is null: no human linguistic review has happened, so every string here renders the beta and machine-translated truthfulness chips. A null value with status 'pending' is the honest record that no confident translation exists for that key; it is counted as absent by packages/i18n/COVERAGE.json and must not be filled with a plausible-looking guess. Text between the U+2772 and U+2773 markers is a PROTECTED SPAN (RX-29) and must be re-emitted byte-identically - do not translate, transliterate, case-fold or reorder it.",
+  "formats": {
+    "number": {
+      "group": " ",
+      "decimal": ",",
+      "grouping": [
+        3
+      ],
+      "machine_generated": true
+    }
+  },
+  "messages": {
+    "nav.workspaces": {
+      "value": "Przestrzenie robocze",
+      "description": "Navigation label, /workspaces route (RX-20). Plural noun; a workspace contains projects.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.projects": {
+      "value": "Projekty",
+      "description": "Navigation label, /projects route (RX-20).",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.sources": {
+      "value": "Źródła",
+      "description": "Navigation label, /sources route (RX-20). Input data and notebooks, not literature references.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.studio": {
+      "value": "Studio",
+      "description": "Navigation label, /studio route (RX-20). The editing surface where an analysis is inspected and repaired. A product-surface name; keep it short.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.lineage": {
+      "value": "Pochodzenie",
+      "description": "Navigation label, /lineage route (RX-20). Which inputs and steps produced which outputs - data provenance, not biological descent.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.repairs": {
+      "value": "Naprawy",
+      "description": "Navigation label, /repairs route (RX-20). Proposed changes to a broken analysis, awaiting approval.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.contracts": {
+      "value": "Kontrakty",
+      "description": "Navigation label, /contracts route (RX-20). A result contract declares what a run must produce and within what tolerance. Not a legal agreement.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.runs": {
+      "value": "Uruchomienia",
+      "description": "Navigation label, /runs route (RX-20). One execution of an analysis.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.evidence": {
+      "value": "Dowody",
+      "description": "Navigation label, /evidence route (RX-20). Stored artefacts that support or refuse a verification outcome.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.wiki": {
+      "value": "Wiki",
+      "description": "Navigation label, /wiki route (RX-20). Keep the loanword if it is the established term in the target language.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.connectors": {
+      "value": "Konektory",
+      "description": "Navigation label, /connectors route (RX-20). Integrations with external data systems.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.calendar": {
+      "value": "Kalendarz",
+      "description": "Navigation label, /calendar route (RX-20). Scheduled runs.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "nav.settings": {
+      "value": "Ustawienia",
+      "description": "Navigation label, /settings route (RX-20).",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "outcome.reproduced_within_contract": {
+      "value": null,
+      "description": "VerificationOutcome REPRODUCED_WITHIN_CONTRACT. MUST match docs/UX.md exactly. NEVER shorten to 'Reproduced' and never render as 'verified', 'validated' or 'passed': RETRACE establishes conformance to a declared contract, not correctness, and dropping the qualifier converts a conformance statement into a correctness claim (docs/security/T10_REVIEW.md control 1). The qualifier must stay inseparable from the label in every language. Left pending until a human linguist signs off.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "outcome.executed_not_verified": {
+      "value": null,
+      "description": "VerificationOutcome EXECUTED_NOT_VERIFIED: the analysis ran, but no verification was performed. The negation carries the meaning and must not be softened.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "outcome.changed_result": {
+      "value": null,
+      "description": "VerificationOutcome CHANGED_RESULT: the output differs from the reference, or the method changed even though the numbers agree.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "outcome.blocked_missing_evidence": {
+      "value": null,
+      "description": "VerificationOutcome BLOCKED_MISSING_EVIDENCE: no outcome could be reached because required evidence is absent. Not a failure of the analysis.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "outcome.failed_execution": {
+      "value": null,
+      "description": "VerificationOutcome FAILED_EXECUTION: the run itself did not complete.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "truth.stale": {
+      "value": null,
+      "description": "Truthfulness chip for a disconnected stream (RX-25). The token inside the protected markers is a fixed machine-readable token: do not translate, case-fold, transliterate or reorder it. Translate only the sentence after it.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "truth.unavailable": {
+      "value": null,
+      "description": "Truthfulness chip for an unreachable source (RX-25). Token protected - translate only the sentence.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "truth.replay": {
+      "value": null,
+      "description": "Truthfulness chip for replayed history (RX-25). Token protected - translate only the sentence.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "truth.demo": {
+      "value": null,
+      "description": "Truthfulness chip for fixture data (RX-25). Token protected - translate only the sentences.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "truth.beta": {
+      "value": null,
+      "description": "Truthfulness chip shown on every unreviewed locale (RX-30). The lowercase token is deliberate and protected - translate only the sentence.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "truth.needs_configuration": {
+      "value": null,
+      "description": "Truthfulness chip for an unconfigured capability (RX-25). Token protected - translate only the sentence.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "truth.synthetic": {
+      "value": null,
+      "description": "Truthfulness chip for generated values (RX-25). Token protected - translate only the sentence.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "truth.injected": {
+      "value": null,
+      "description": "Truthfulness chip for system-added content (RX-25). The lowercase token is deliberate and protected.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "truth.machine_translated": {
+      "value": null,
+      "description": "Truthfulness chip for machine translation (RX-30). Token protected - translate only the sentence.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "field.project_name": {
+      "value": "Nazwa projektu",
+      "description": "Form field label.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "field.notebook_path": {
+      "value": null,
+      "description": "Form field label. A snapshot-relative file path.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "field.dataset_digest": {
+      "value": null,
+      "description": "Form field label. The algorithm name is a protected span: it is an identifier, not a word (RX-29).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "field.tolerance": {
+      "value": null,
+      "description": "Form field label. How far an output may differ from the reference and still conform.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "field.timezone": {
+      "value": null,
+      "description": "Form field label. The standard's name is a protected span (RX-29). Storage is always UTC (RX-31).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "field.random_seed": {
+      "value": null,
+      "description": "Form field label. The value that makes a stochastic analysis repeatable.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "field.contract_id": {
+      "value": null,
+      "description": "Form field label.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "field.reviewer_email": {
+      "value": null,
+      "description": "Form field label.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "field.retention_days": {
+      "value": null,
+      "description": "Form field label. The unit is a protected span so it is never translated into an ambiguous abbreviation (RX-29).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "validation.required": {
+      "value": "Pole {field} jest wymagane.",
+      "description": "Validation message. {field} is substituted with a translated field label, so the sentence must read correctly with a noun phrase in that position.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "validation.digest_format": {
+      "value": null,
+      "description": "Validation message. Keep the number 64 and the protected algorithm name exactly (RX-29).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "validation.tolerance_range": {
+      "value": null,
+      "description": "Validation message. {min} and {max} are numbers formatted for the locale.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "validation.path_not_relative": {
+      "value": null,
+      "description": "Validation message (RX-06). The traversal token is a protected span: it is syntax, not punctuation (RX-29).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "validation.email_format": {
+      "value": null,
+      "description": "Validation message.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "validation.too_long": {
+      "value": null,
+      "description": "Validation message. {max} is a number.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "validation.known_limits_required": {
+      "value": null,
+      "description": "Validation message (RX-03). A result contract must admit what it cannot establish before it can be approved; this refusal is deliberate and must not read as a transient error.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "error.run_failed": {
+      "value": null,
+      "description": "Error state.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "error.evidence_missing": {
+      "value": null,
+      "description": "Error state (RX-37). Abstaining is the correct behaviour here, not a bug.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "error.permission_denied": {
+      "value": "Nie masz uprawnień, aby to zobaczyć.",
+      "description": "Error state.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "error.offline": {
+      "value": "Brak połączenia. Nic tutaj nie jest na żywo.",
+      "description": "Error state (RX-25).",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "error.rate_limited": {
+      "value": null,
+      "description": "Error state (RX-51). {seconds} is a number; the sentence must stay grammatical for 1 and for many - use a neutral phrasing if the language needs one.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "error.budget_exceeded": {
+      "value": null,
+      "description": "Error state (RX-35). {budget} is substituted with a budget name such as tokens, requests, time or cost.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "notify.run_complete": {
+      "value": null,
+      "description": "Notification. The run identifier is a protected span: the placeholder resolves to an opaque identifier that must not be reflowed or reordered (RX-29, RX-28).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "notify.repair_proposed": {
+      "value": null,
+      "description": "Notification. The notebook path is a protected span (RX-29).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "notify.approval_required": {
+      "value": null,
+      "description": "Notification (RX-05).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "notify.approval_invalidated": {
+      "value": null,
+      "description": "Notification (RX-05). An approval binds one exact candidate; any change voids it.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "notify.export_ready": {
+      "value": null,
+      "description": "Notification.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "help.contract_limits": {
+      "value": null,
+      "description": "Help text (RX-03).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "help.tolerance": {
+      "value": null,
+      "description": "Help text. Keep the warning blunt; this is the second-order exposure recorded in docs/security/T10_REVIEW.md.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "help.protected_spans": {
+      "value": null,
+      "description": "Help text (RX-29). The standard's name is itself a protected span. If the target language needs a different plural form around it, reword so the token stands alone rather than altering it.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "help.conformance_not_correctness": {
+      "value": null,
+      "description": "Help text. The central honest limitation (docs/security/T10_REVIEW.md). Do not soften 'does not' into 'may not' or 'cannot fully'.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "consent.data_processing": {
+      "value": null,
+      "description": "Consent copy. Both sentences are commitments; neither may be dropped or hedged.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "consent.telemetry": {
+      "value": null,
+      "description": "Consent copy. Opt-in wording; must not imply the choice is already made.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "consent.withdraw": {
+      "value": null,
+      "description": "Consent copy. The second sentence is a limitation and must be kept.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "invite.heading": {
+      "value": null,
+      "description": "Invitation copy, heading.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "invite.body": {
+      "value": null,
+      "description": "Invitation copy, body. Three placeholders; keep all three.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "invite.cta": {
+      "value": "Otwórz zaproszenie",
+      "description": "Invitation copy, button label. Imperative.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "email.subject.run_complete": {
+      "value": null,
+      "description": "Email subject. The identifier is protected; {outcome} resolves to one of the five outcome labels, which must not be shortened.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "email.body.run_complete": {
+      "value": null,
+      "description": "Email body. Mentioning the limitations is required, not optional (RX-15).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "email.subject.invitation": {
+      "value": null,
+      "description": "Email subject.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "email.body.invitation": {
+      "value": null,
+      "description": "Email body. The single-use statement must be kept.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "a11y.skip_to_content": {
+      "value": null,
+      "description": "Accessibility label for the skip link.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "a11y.main_nav": {
+      "value": "Nawigacja główna",
+      "description": "Accessibility label for the navigation landmark.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "a11y.close_panel": {
+      "value": "Zamknij panel",
+      "description": "Accessibility label for a panel close control.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "a11y.sort_column": {
+      "value": null,
+      "description": "Accessibility label for a sortable column header.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "a11y.outcome_icon": {
+      "value": null,
+      "description": "Accessibility label read instead of the outcome icon. Colour is never the carrier of state (RX-25), so this text must carry the full label.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "a11y.loading": {
+      "value": "Wczytywanie",
+      "description": "Accessibility label for a busy region.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "export.title": {
+      "value": "Eksport",
+      "description": "Export panel title.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "export.download_bundle": {
+      "value": "Pobierz paczkę dowodową",
+      "description": "Export action label.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "export.includes_limitations": {
+      "value": null,
+      "description": "Export panel help text (RX-15).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "export.digest_label": {
+      "value": null,
+      "description": "Export field label (RX-29).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "export.generated_at": {
+      "value": null,
+      "description": "Export chrome. The timestamp renders in the viewer's zone from UTC storage (RX-31) and is protected so it is never reordered inside right-to-left text (RX-28).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "state.empty": {
+      "value": "Nie ma jeszcze nic do pokazania.",
+      "description": "Empty state.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "state.loading": {
+      "value": "Wczytywanie...",
+      "description": "Loading state.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "state.partial": {
+      "value": null,
+      "description": "Partial state (RX-25).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "state.needs_configuration": {
+      "value": null,
+      "description": "Needs-configuration state (RX-25).",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "count.runs": {
+      "forms": {
+        "one": "{n} uruchomienie",
+        "few": "{n} uruchomienia",
+        "many": "{n} uruchomień",
+        "other": "{n} uruchomienia"
+      },
+      "description": "Plural message. Provide one form per CLDR plural category your locale declares in specs/locales.json; a category you leave out falls back to English and is reported as pending.",
+      "machine_generated": true,
+      "status": "translated"
+    },
+    "count.failed_checks": {
+      "forms": {
+        "one": null,
+        "few": null,
+        "many": null,
+        "other": null
+      },
+      "description": "Plural message. Provide one form per declared CLDR plural category.",
+      "machine_generated": true,
+      "status": "pending"
+    },
+    "count.pending_translations": {
+      "forms": {
+        "one": null,
+        "few": null,
+        "many": null,
+        "other": null
+      },
+      "description": "Plural message. Provide one form per declared CLDR plural category.",
+      "machine_generated": true,
+      "status": "pending"
+    }
+  }
+}

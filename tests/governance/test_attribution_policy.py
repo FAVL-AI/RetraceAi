@@ -16,6 +16,7 @@ claim: a file that must refuse a string necessarily contains it.
 
 from __future__ import annotations
 
+import pathlib
 import re
 import subprocess
 from pathlib import Path
@@ -69,8 +70,11 @@ SELF = Path(__file__).relative_to(REPO).as_posix()
 
 
 def _tracked_text_files() -> list[Path]:
-    out = subprocess.run(
-        ["git", "-C", str(REPO), "ls-files", "-z"],
+    # S603/S607: a fixed argv naming `git` from PATH, with no untrusted input.
+    # Both rules stay ENABLED globally - services/runner executes untrusted
+    # notebooks and must never be exempt from them.
+    out = subprocess.run(  # noqa: S603
+        ["git", "-C", str(REPO), "ls-files", "-z"],  # noqa: S607
         capture_output=True, text=True, check=True,
     ).stdout
     paths = []
@@ -82,6 +86,52 @@ def _tracked_text_files() -> list[Path]:
             continue
         paths.append(p)
     return paths
+
+
+def _source_tree_files() -> list[pathlib.Path]:
+    """Every Python file under the source roots, read from DISK, not from git.
+
+    WHY BOTH SWEEPS. The git sweep below is the authority for what ships, but it
+    reads `git ls-files`, so a file that has not been staged yet would pass it
+    VACUOUSLY. A worker writing a new module with a vendor name in it would go
+    unnoticed until someone happened to stage it. This sweep closes that gap by
+    walking the filesystem instead. (Identified while integrating the domain
+    worker, which had written its own duplicate of this control for exactly this
+    reason; the duplicate was removed in favour of fixing the original.)
+    """
+    out: list[pathlib.Path] = []
+    for root in SOURCE_ROOTS:
+        base = REPO / root
+        if base.is_dir():
+            out.extend(
+                q for q in sorted(base.rglob("*.py"))
+                if "__pycache__" not in q.parts and ".venv" not in q.parts
+            )
+    assert len(out) >= 20, f"source sweep found only {len(out)} files; it would pass vacuously"
+    return out
+
+
+def test_untracked_source_files_also_carry_no_vendor_name() -> None:
+    """The same property as the git sweep, but proof against unstaged files."""
+    pat = re.compile(_VENDOR)
+    hits = [
+        (q.relative_to(REPO).as_posix(), m.group(0))
+        for q in _source_tree_files()
+        if q.relative_to(REPO).as_posix() != SELF
+        for m in pat.finditer(q.read_text(encoding="utf-8", errors="replace"))
+    ]
+    assert not hits, f"vendor name in an on-disk source file: {hits}"
+
+
+def test_untracked_source_files_also_carry_no_shaped_attribution() -> None:
+    """Authorship is carried by git identity, never a text header - on disk too."""
+    hits = [
+        (q.relative_to(REPO).as_posix(), m.group(0).strip())
+        for q in _source_tree_files()
+        if q.relative_to(REPO).as_posix() != SELF
+        for m in SHAPED_ATTRIBUTION.finditer(q.read_text(encoding="utf-8", errors="replace"))
+    ]
+    assert not hits, f"shaped attribution in an on-disk source file: {hits}"
 
 
 @pytest.fixture(scope="module")

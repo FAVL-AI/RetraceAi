@@ -1,0 +1,544 @@
+{
+  "locale": "en",
+  "review_status": "source",
+  "reviewer": null,
+  "reviewed_at": null,
+  "notes": "SOURCE catalogue (RX-26). Structural coverage of every other locale is measured against this key set. Text between the U+2772 and U+2773 markers is a PROTECTED SPAN (RX-29): identifiers, units, DOIs, dataset names, digests and machine-readable tokens. A translation pass must re-emit every protected payload byte-identically; retrace_i18n.protected.translate_preserving is the only sanctioned way to run one. 'source' is not a review record: this file has no reviewer and no review timestamp, so English is not counted as reviewed either (RX-30).",
+  "formats": {
+    "number": {
+      "group": ",",
+      "decimal": ".",
+      "grouping": [
+        3
+      ],
+      "machine_generated": false
+    }
+  },
+  "messages": {
+    "nav.workspaces": {
+      "value": "Workspaces",
+      "description": "Navigation label, /workspaces route (RX-20). Plural noun; a workspace contains projects.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.projects": {
+      "value": "Projects",
+      "description": "Navigation label, /projects route (RX-20).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.sources": {
+      "value": "Sources",
+      "description": "Navigation label, /sources route (RX-20). Input data and notebooks, not literature references.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.studio": {
+      "value": "Studio",
+      "description": "Navigation label, /studio route (RX-20). The editing surface where an analysis is inspected and repaired. A product-surface name; keep it short.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.lineage": {
+      "value": "Lineage",
+      "description": "Navigation label, /lineage route (RX-20). Which inputs and steps produced which outputs - data provenance, not biological descent.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.repairs": {
+      "value": "Repairs",
+      "description": "Navigation label, /repairs route (RX-20). Proposed changes to a broken analysis, awaiting approval.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.contracts": {
+      "value": "Contracts",
+      "description": "Navigation label, /contracts route (RX-20). A result contract declares what a run must produce and within what tolerance. Not a legal agreement.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.runs": {
+      "value": "Runs",
+      "description": "Navigation label, /runs route (RX-20). One execution of an analysis.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.evidence": {
+      "value": "Evidence",
+      "description": "Navigation label, /evidence route (RX-20). Stored artefacts that support or refuse a verification outcome.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.wiki": {
+      "value": "Wiki",
+      "description": "Navigation label, /wiki route (RX-20). Keep the loanword if it is the established term in the target language.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.connectors": {
+      "value": "Connectors",
+      "description": "Navigation label, /connectors route (RX-20). Integrations with external data systems.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.calendar": {
+      "value": "Calendar",
+      "description": "Navigation label, /calendar route (RX-20). Scheduled runs.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "nav.settings": {
+      "value": "Settings",
+      "description": "Navigation label, /settings route (RX-20).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "outcome.reproduced_within_contract": {
+      "value": "Reproduced within contract",
+      "description": "VerificationOutcome REPRODUCED_WITHIN_CONTRACT. MUST match docs/UX.md exactly. NEVER shorten to 'Reproduced' and never render as 'verified', 'validated' or 'passed': RETRACE establishes conformance to a declared contract, not correctness, and dropping the qualifier converts a conformance statement into a correctness claim (docs/security/T10_REVIEW.md control 1). The qualifier must stay inseparable from the label in every language. Left pending until a human linguist signs off.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "outcome.executed_not_verified": {
+      "value": "Executed — not verified",
+      "description": "VerificationOutcome EXECUTED_NOT_VERIFIED: the analysis ran, but no verification was performed. The negation carries the meaning and must not be softened.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "outcome.changed_result": {
+      "value": "Changed result",
+      "description": "VerificationOutcome CHANGED_RESULT: the output differs from the reference, or the method changed even though the numbers agree.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "outcome.blocked_missing_evidence": {
+      "value": "Blocked — missing evidence",
+      "description": "VerificationOutcome BLOCKED_MISSING_EVIDENCE: no outcome could be reached because required evidence is absent. Not a failure of the analysis.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "outcome.failed_execution": {
+      "value": "Failed execution",
+      "description": "VerificationOutcome FAILED_EXECUTION: the run itself did not complete.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "truth.stale": {
+      "value": "❲STALE❳ The data shown is not live.",
+      "description": "Truthfulness chip for a disconnected stream (RX-25). The token inside the protected markers is a fixed machine-readable token: do not translate, case-fold, transliterate or reorder it. Translate only the sentence after it.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "truth.unavailable": {
+      "value": "❲UNAVAILABLE❳ This source cannot be reached.",
+      "description": "Truthfulness chip for an unreachable source (RX-25). Token protected - translate only the sentence.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "truth.replay": {
+      "value": "❲REPLAY❳ Recorded history, not live activity.",
+      "description": "Truthfulness chip for replayed history (RX-25). Token protected - translate only the sentence.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "truth.demo": {
+      "value": "❲DEMO❳ Fixture data. Not a real run.",
+      "description": "Truthfulness chip for fixture data (RX-25). Token protected - translate only the sentences.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "truth.beta": {
+      "value": "❲beta❳ Machine-translated and not reviewed by a human linguist.",
+      "description": "Truthfulness chip shown on every unreviewed locale (RX-30). The lowercase token is deliberate and protected - translate only the sentence.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "truth.needs_configuration": {
+      "value": "❲NEEDS_CONFIGURATION❳ No credential or setting is provisioned.",
+      "description": "Truthfulness chip for an unconfigured capability (RX-25). Token protected - translate only the sentence.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "truth.synthetic": {
+      "value": "❲SYNTHETIC❳ Generated values, not measurements.",
+      "description": "Truthfulness chip for generated values (RX-25). Token protected - translate only the sentence.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "truth.injected": {
+      "value": "❲injected❳ Added by the system; not present in the source.",
+      "description": "Truthfulness chip for system-added content (RX-25). The lowercase token is deliberate and protected.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "truth.machine_translated": {
+      "value": "❲machine-translated❳ No human linguistic review has happened.",
+      "description": "Truthfulness chip for machine translation (RX-30). Token protected - translate only the sentence.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "field.project_name": {
+      "value": "Project name",
+      "description": "Form field label.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "field.notebook_path": {
+      "value": "Notebook path",
+      "description": "Form field label. A snapshot-relative file path.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "field.dataset_digest": {
+      "value": "Dataset digest (❲sha256❳)",
+      "description": "Form field label. The algorithm name is a protected span: it is an identifier, not a word (RX-29).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "field.tolerance": {
+      "value": "Numeric tolerance",
+      "description": "Form field label. How far an output may differ from the reference and still conform.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "field.timezone": {
+      "value": "Display time zone (❲IANA❳)",
+      "description": "Form field label. The standard's name is a protected span (RX-29). Storage is always UTC (RX-31).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "field.random_seed": {
+      "value": "Random seed",
+      "description": "Form field label. The value that makes a stochastic analysis repeatable.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "field.contract_id": {
+      "value": "Contract identifier",
+      "description": "Form field label.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "field.reviewer_email": {
+      "value": "Reviewer email address",
+      "description": "Form field label.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "field.retention_days": {
+      "value": "Retention period (❲days❳)",
+      "description": "Form field label. The unit is a protected span so it is never translated into an ambiguous abbreviation (RX-29).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "validation.required": {
+      "value": "{field} is required.",
+      "description": "Validation message. {field} is substituted with a translated field label, so the sentence must read correctly with a noun phrase in that position.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "validation.digest_format": {
+      "value": "Enter a 64-character lowercase hexadecimal ❲sha256❳ digest.",
+      "description": "Validation message. Keep the number 64 and the protected algorithm name exactly (RX-29).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "validation.tolerance_range": {
+      "value": "Tolerance must be between {min} and {max}.",
+      "description": "Validation message. {min} and {max} are numbers formatted for the locale.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "validation.path_not_relative": {
+      "value": "Enter a path inside the snapshot. Absolute paths and ❲..❳ segments are refused.",
+      "description": "Validation message (RX-06). The traversal token is a protected span: it is syntax, not punctuation (RX-29).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "validation.email_format": {
+      "value": "Enter a valid email address.",
+      "description": "Validation message.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "validation.too_long": {
+      "value": "Use at most {max} characters.",
+      "description": "Validation message. {max} is a number.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "validation.known_limits_required": {
+      "value": "State at least one known limit. A contract that declares none is refused.",
+      "description": "Validation message (RX-03). A result contract must admit what it cannot establish before it can be approved; this refusal is deliberate and must not read as a transient error.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "error.run_failed": {
+      "value": "The run failed before producing an output.",
+      "description": "Error state.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "error.evidence_missing": {
+      "value": "Required evidence is missing, so no outcome can be reported.",
+      "description": "Error state (RX-37). Abstaining is the correct behaviour here, not a bug.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "error.permission_denied": {
+      "value": "You do not have permission to view this.",
+      "description": "Error state.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "error.offline": {
+      "value": "No connection. Nothing shown here is live.",
+      "description": "Error state (RX-25).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "error.rate_limited": {
+      "value": "Too many requests. Try again in {seconds} seconds.",
+      "description": "Error state (RX-51). {seconds} is a number; the sentence must stay grammatical for 1 and for many - use a neutral phrasing if the language needs one.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "error.budget_exceeded": {
+      "value": "The run stopped: the {budget} budget was exhausted.",
+      "description": "Error state (RX-35). {budget} is substituted with a budget name such as tokens, requests, time or cost.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "notify.run_complete": {
+      "value": "Run ❲{run_id}❳ finished.",
+      "description": "Notification. The run identifier is a protected span: the placeholder resolves to an opaque identifier that must not be reflowed or reordered (RX-29, RX-28).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "notify.repair_proposed": {
+      "value": "A repair was proposed for ❲{notebook}❳.",
+      "description": "Notification. The notebook path is a protected span (RX-29).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "notify.approval_required": {
+      "value": "Approval is required before this repair can be applied.",
+      "description": "Notification (RX-05).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "notify.approval_invalidated": {
+      "value": "The approval no longer binds: the candidate changed.",
+      "description": "Notification (RX-05). An approval binds one exact candidate; any change voids it.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "notify.export_ready": {
+      "value": "The evidence bundle is ready to download.",
+      "description": "Notification.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "help.contract_limits": {
+      "value": "A result contract must state its known limits before it can be approved.",
+      "description": "Help text (RX-03).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "help.tolerance": {
+      "value": "A tolerance wide enough to admit any answer turns verification into theatre. Keep it as narrow as the measurement allows.",
+      "description": "Help text. Keep the warning blunt; this is the second-order exposure recorded in docs/security/T10_REVIEW.md.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "help.protected_spans": {
+      "value": "Quotations, identifiers, ❲DOI❳s, units, dataset names and digests are never translated or reflowed.",
+      "description": "Help text (RX-29). The standard's name is itself a protected span. If the target language needs a different plural form around it, reword so the token stands alone rather than altering it.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "help.conformance_not_correctness": {
+      "value": "RETRACE checks that a run conformed to its declared contract. It does not check that the method or the finding is correct.",
+      "description": "Help text. The central honest limitation (docs/security/T10_REVIEW.md). Do not soften 'does not' into 'may not' or 'cannot fully'.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "consent.data_processing": {
+      "value": "Your uploaded notebooks, data and run outputs are processed to recover and verify the analysis. Nothing is used to train a model.",
+      "description": "Consent copy. Both sentences are commitments; neither may be dropped or hedged.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "consent.telemetry": {
+      "value": "Share anonymous usage events to help find failures. You can turn this off at any time.",
+      "description": "Consent copy. Opt-in wording; must not imply the choice is already made.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "consent.withdraw": {
+      "value": "You can withdraw consent at any time. Withdrawal stops future processing and does not delete work already stored.",
+      "description": "Consent copy. The second sentence is a limitation and must be kept.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "invite.heading": {
+      "value": "You have been invited to a project",
+      "description": "Invitation copy, heading.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "invite.body": {
+      "value": "{inviter} invited you to {project}. The invitation expires in {hours} hours.",
+      "description": "Invitation copy, body. Three placeholders; keep all three.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "invite.cta": {
+      "value": "Open the invitation",
+      "description": "Invitation copy, button label. Imperative.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "email.subject.run_complete": {
+      "value": "Run ❲{run_id}❳ finished: {outcome}",
+      "description": "Email subject. The identifier is protected; {outcome} resolves to one of the five outcome labels, which must not be shortened.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "email.body.run_complete": {
+      "value": "Run ❲{run_id}❳ finished with the outcome {outcome}. Open RETRACE to read the evidence bundle and the limitations it states.",
+      "description": "Email body. Mentioning the limitations is required, not optional (RX-15).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "email.subject.invitation": {
+      "value": "Invitation to the project {project}",
+      "description": "Email subject.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "email.body.invitation": {
+      "value": "{inviter} invited you to {project}. This link expires in {hours} hours and can be used once.",
+      "description": "Email body. The single-use statement must be kept.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "a11y.skip_to_content": {
+      "value": "Skip to main content",
+      "description": "Accessibility label for the skip link.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "a11y.main_nav": {
+      "value": "Main navigation",
+      "description": "Accessibility label for the navigation landmark.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "a11y.close_panel": {
+      "value": "Close panel",
+      "description": "Accessibility label for a panel close control.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "a11y.sort_column": {
+      "value": "Sort by {column}",
+      "description": "Accessibility label for a sortable column header.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "a11y.outcome_icon": {
+      "value": "Verification outcome: {outcome}",
+      "description": "Accessibility label read instead of the outcome icon. Colour is never the carrier of state (RX-25), so this text must carry the full label.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "a11y.loading": {
+      "value": "Loading",
+      "description": "Accessibility label for a busy region.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "export.title": {
+      "value": "Export",
+      "description": "Export panel title.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "export.download_bundle": {
+      "value": "Download evidence bundle",
+      "description": "Export action label.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "export.includes_limitations": {
+      "value": "Every bundle states what this verification cannot establish.",
+      "description": "Export panel help text (RX-15).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "export.digest_label": {
+      "value": "Bundle digest (❲sha256❳)",
+      "description": "Export field label (RX-29).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "export.generated_at": {
+      "value": "Generated at ❲{timestamp}❳",
+      "description": "Export chrome. The timestamp renders in the viewer's zone from UTC storage (RX-31) and is protected so it is never reordered inside right-to-left text (RX-28).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "state.empty": {
+      "value": "Nothing to show yet.",
+      "description": "Empty state.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "state.loading": {
+      "value": "Loading...",
+      "description": "Loading state.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "state.partial": {
+      "value": "Partial data. Some records could not be read.",
+      "description": "Partial state (RX-25).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "state.needs_configuration": {
+      "value": "This needs configuration before it can show anything.",
+      "description": "Needs-configuration state (RX-25).",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "count.runs": {
+      "forms": {
+        "one": "{n} run",
+        "other": "{n} runs"
+      },
+      "description": "Plural message. Provide one form per CLDR plural category your locale declares in specs/locales.json; a category you leave out falls back to English and is reported as pending.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "count.failed_checks": {
+      "forms": {
+        "one": "{n} check failed",
+        "other": "{n} checks failed"
+      },
+      "description": "Plural message. Provide one form per declared CLDR plural category.",
+      "machine_generated": false,
+      "status": "source"
+    },
+    "count.pending_translations": {
+      "forms": {
+        "one": "{n} string is awaiting translation",
+        "other": "{n} strings are awaiting translation"
+      },
+      "description": "Plural message. Provide one form per declared CLDR plural category.",
+      "machine_generated": false,
+      "status": "source"
+    }
+  }
+}

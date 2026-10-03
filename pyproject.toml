@@ -3,7 +3,13 @@ name = "retrace"
 version = "0.0.0"
 description = "RETRACE AI - scientific workflow repair and verification workbench"
 authors = [{ name = "Frank Asante Van Laarhoven", email = "frankleroyvan@gmail.com" }]
-requires-python = ">=3.11"
+# 3.12 is the real floor, not 3.11. services/runner uses os.unshare +
+# CLONE_NEWNET/CLONE_NEWUSER for the runner's private network namespace, and
+# os.unshare was added in CPython 3.12. The runner degrades safely on 3.11 (the
+# support probe reports the missing attribute and the run is REFUSED rather than
+# executed unisolated), but refusing every isolated run is not "supported", so
+# declaring >=3.11 overstated what works. Raised to match reality (RX-08).
+requires-python = ">=3.12"
 dependencies = [
   "pydantic>=2.9",
   "fastapi>=0.115",
@@ -38,7 +44,7 @@ markers = ["integration: requires containers", "slow: long running"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "S", "UP"]
@@ -52,6 +58,7 @@ ignore = [
 ]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
+mypy_path = "packages/contracts:packages/domain:packages/i18n:services/api:services/runner:services/verifier"
 strict = false
 warn_unused_ignores = true
