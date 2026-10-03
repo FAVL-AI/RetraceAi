@@ -165,3 +165,112 @@ def test_service_role_cannot_create_tables(svc_dsn: str) -> None:
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             cur.execute("create table should_not_exist (x int)")
         c.rollback()
+
+
+# --------------------------------------------------------------------------- #
+# Pooled-connection and context-shape cases.
+#
+# The empty-string finding is NOT universal: `set_config(..., is_local => true)`
+# reverts to '' at transaction end, which is what the nullif() in the policy
+# exists for. A SESSION-level setting behaves differently and is covered
+# separately below, so the regression test does not overclaim.
+# --------------------------------------------------------------------------- #
+def test_empty_string_context_sees_nothing(svc_dsn: str, seeded) -> None:
+    """The exact regression: '' must match no rows, not raise and not leak."""
+    with psycopg.connect(svc_dsn) as c, c.cursor() as cur:
+        cur.execute("select set_config('retrace.tenant_id', %s, true)", ("",))
+        rows = cur.execute("select * from projects").fetchall()
+    assert rows == [], "empty tenant context returned rows"
+
+
+def test_malformed_context_is_refused_not_coerced(svc_dsn: str, seeded) -> None:
+    """A non-uuid tenant context must fail, never silently match something."""
+    with psycopg.connect(svc_dsn) as c, c.cursor() as cur:
+        cur.execute("select set_config('retrace.tenant_id', %s, true)", ("not-a-uuid",))
+        with pytest.raises(psycopg.errors.InvalidTextRepresentation):
+            cur.execute("select * from projects").fetchall()
+        c.rollback()
+
+
+def test_session_level_context_is_the_other_case(svc_dsn: str, seeded) -> None:
+    """A SESSION setting persists past commit, which is exactly why requests must
+    use the transaction-local form. Documented as a hazard, not a recommendation."""
+    with psycopg.connect(svc_dsn) as c:
+        with c.cursor() as cur:
+            # is_local=false is the SESSION-level form, and unlike `SET SESSION`
+            # it accepts a bind parameter, so no interpolation is needed.
+            cur.execute("select set_config('retrace.tenant_id', %s, false)", (str(TENANT_A),))
+            assert cur.execute("select count(*) from projects").fetchone()[0] == 1
+        c.commit()
+        # Still set: a pooled connection would carry tenant A into the next request.
+        leaked = c.execute("select count(*) from projects").fetchone()[0]
+    assert leaked == 1, (
+        "expected the session-level setting to persist; if this changes, the "
+        "argument for SET LOCAL in request handling needs restating"
+    )
+
+
+def test_rollback_discards_the_write_and_the_identity(svc_dsn: str, seeded) -> None:
+    """RX-48: neither the row nor the tenant context survives a rollback."""
+    new_id = uuid.uuid4()
+    with psycopg.connect(svc_dsn) as c:
+        with c.cursor() as cur:
+            cur.execute("select set_config('retrace.tenant_id', %s, true)", (str(TENANT_A),))
+            cur.execute(
+                "insert into projects (tenant_id, id, name, created_at) values (%s,%s,%s,%s)",
+                (TENANT_A, new_id, "rolled-back", NOW),
+            )
+            assert cur.execute("select count(*) from projects").fetchone()[0] == 2
+        c.rollback()
+        assert c.execute("select count(*) from projects").fetchone()[0] == 0, (
+            "identity survived the rollback"
+        )
+    with psycopg.connect(svc_dsn) as c, c.cursor() as cur:
+        cur.execute("select set_config('retrace.tenant_id', %s, true)", (str(TENANT_A),))
+        assert cur.execute(
+            "select count(*) from projects where id = %s", (new_id,)
+        ).fetchone()[0] == 0, "the rolled-back row persisted"
+
+
+def test_alternating_tenants_on_one_reused_connection(svc_dsn: str, seeded) -> None:
+    """The pooling case: three transactions, three identities, one socket."""
+    with psycopg.connect(svc_dsn) as c:
+        seen = []
+        for tenant in (TENANT_A, TENANT_B, TENANT_A):
+            with c.cursor() as cur:
+                cur.execute("select set_config('retrace.tenant_id', %s, true)", (str(tenant),))
+                seen.append(
+                    [r[0] for r in cur.execute("select name from projects").fetchall()]
+                )
+            c.commit()
+    assert seen == [["A-project"], ["B-project"], ["A-project"]], seen
+
+
+def test_cross_tenant_update_and_delete_affect_nothing(svc_dsn: str, seeded) -> None:
+    """Writes are policed too: tenant A cannot reach tenant B's row to change it."""
+    _, pb = seeded
+    with psycopg.connect(svc_dsn) as c, c.cursor() as cur:
+        cur.execute("select set_config('retrace.tenant_id', %s, true)", (str(TENANT_A),))
+        cur.execute("update projects set name = %s where id = %s", ("hijacked", pb))
+        assert cur.rowcount == 0, "a cross-tenant UPDATE matched rows"
+        cur.execute("delete from projects where id = %s", (pb,))
+        assert cur.rowcount == 0, "a cross-tenant DELETE matched rows"
+        c.commit()
+    with psycopg.connect(svc_dsn) as c, c.cursor() as cur:
+        cur.execute("select set_config('retrace.tenant_id', %s, true)", (str(TENANT_B),))
+        assert cur.execute("select name from projects where id = %s", (pb,)).fetchone() == (
+            "B-project",
+        ), "tenant B's row was modified across the boundary"
+
+
+@pytest.mark.skip(
+    reason=(
+        "NOT_RUN, not passing: requires services/api, which does not exist. The "
+        "requirement is that the application derives the tenant from an "
+        "AUTHENTICATED principal and never from a caller-supplied value. These "
+        "tests set the context directly, so they prove the database half only. "
+        "Kept as an explicit, visible gap rather than omitted."
+    )
+)
+def test_tenant_context_comes_from_authenticated_authorisation() -> None:  # pragma: no cover
+    raise AssertionError("unimplemented gate")
