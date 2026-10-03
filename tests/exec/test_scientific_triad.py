@@ -18,8 +18,6 @@ they establish that the mechanism works, not anything about real data.
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -44,8 +42,10 @@ from retrace_domain import (
     RepairAuthority,
     WriteRefused,
     snapshot_create,
+    snapshot_materialise,
     store_reader,
 )
+from retrace_runner import ExecutionLimits, run_notebook
 from retrace_verifier import FilesystemReferenceReader, verify
 
 if TYPE_CHECKING:  # pragma: no cover - annotation only
@@ -76,6 +76,27 @@ REAL_PATH = "inputs/measurements.csv"
 SEED = 20260301
 RULE = "complete cases only"
 
+NOTEBOOK_NAME = "analysis.ipynb"
+
+nbformat = pytest.importorskip("nbformat", reason="the runner needs real notebooks")
+
+
+def notebook_json(source: str) -> str:
+    """Serialise one code cell as a real ``.ipynb`` document.
+
+    The repair provider patches this TEXT, which is the honest test: a real
+    notebook is JSON, so a provider that can only patch bare Python would not
+    help anybody. nbformat writes each source line as its own array element, so
+    the wrong path sits on a line of its own and the diff stays reviewable.
+    """
+    return nbformat.writes(
+        nbformat.v4.new_notebook(cells=[nbformat.v4.new_code_cell(source)])
+    )
+
+
+#: A generous wall clock: these tests are about the scientific outcome, not timing.
+RUN_LIMITS = ExecutionLimits(wall_clock_seconds=180.0)
+
 NOTEBOOK_SOURCE = f"""\
 import csv, json, statistics
 # INJECTED FAULT (injected: true): this path is wrong on purpose.
@@ -97,6 +118,9 @@ json.dump(
     open("outputs.json", "w"),
 )
 """
+
+#: The notebook with the INJECTED fault still in place (injected: true).
+FAULTY_NOTEBOOK_JSON = notebook_json(NOTEBOOK_SOURCE)
 
 
 def apply_unified_diff(original: str, diff: str) -> str:
@@ -150,7 +174,7 @@ def faulty_source(tmp_path: Path) -> Path:
     root = tmp_path / "source"
     (root / "inputs").mkdir(parents=True)
     (root / REAL_PATH).write_text(CSV_BODY, encoding="utf-8")
-    (root / "analysis.py").write_text(NOTEBOOK_SOURCE, encoding="utf-8")
+    (root / NOTEBOOK_NAME).write_text(FAULTY_NOTEBOOK_JSON, encoding="utf-8")
     return root
 
 
@@ -201,7 +225,7 @@ def test_case1_legitimate_repair_reproduces_within_contract(
         Diagnosis(
             diagnosis_id="d1",
             snapshot_id=manifest.manifest_digest,
-            target_path="analysis.py",
+            target_path=NOTEBOOK_NAME,
             fault_class=FaultClass.MISSING_INPUT_PATH,
             detail="injected: the notebook reads a path absent from the snapshot",
             missing_path=WRONG_PATH,
@@ -218,32 +242,54 @@ def test_case1_legitimate_repair_reproduces_within_contract(
     assert snapshot_create(store, faulty_source).manifest_digest == before
 
     # The diff must apply cleanly to the exact bytes it claims to patch.
-    patched = apply_unified_diff(NOTEBOOK_SOURCE, proposal.unified_diff)
+    patched = apply_unified_diff(FAULTY_NOTEBOOK_JSON, proposal.unified_diff)
     assert REAL_PATH in patched and WRONG_PATH not in patched
 
-    # Run the repaired analysis in its own directory, then verify independently.
+    # Execute THROUGH THE RUNNER, inside its isolation boundary. The recovered
+    # project invariants require that imported code runs only in the approved
+    # sandbox and never on the developer host, so this must not be a bare
+    # subprocess even for a synthetic fixture: the triad has to exercise the
+    # same execution path a real analysis would take (RX-08).
+    repaired_tree = tmp_path / "repaired"
+    repaired_tree.mkdir()
+    (repaired_tree / NOTEBOOK_NAME).write_text(patched, encoding="utf-8")
+
+    # Materialise the snapshot into the runner's scratch root BEFORE the run.
+    # This is the integrator's wiring: the runner creates an empty scratch dir
+    # and declares a materialiser seam, so the inputs the notebook reads are the
+    # SNAPSHOTTED bytes, digest-verified as they are written (RX-01, RX-02) -
+    # not a second copy the test happened to produce.
     run_dir = tmp_path / "run"
-    (run_dir / "inputs").mkdir(parents=True)
-    (run_dir / REAL_PATH).write_text(CSV_BODY, encoding="utf-8")
-    (run_dir / "analysis.py").write_text(patched, encoding="utf-8")
-    completed = subprocess.run(  # noqa: S603 - fixed argv, fixture content only
-        [sys.executable, "analysis.py"], cwd=run_dir, capture_output=True, text=True, timeout=120
+    scratch = run_dir / "scratch"
+    scratch.mkdir(parents=True)
+    snapshot_materialise(store, manifest, scratch)
+    assert (scratch / REAL_PATH).read_text(encoding="utf-8") == CSV_BODY
+
+    result = run_notebook(
+        repaired_tree / NOTEBOOK_NAME,
+        run_dir,
+        RUN_LIMITS,
+        run_id="triad-case-1",
+        source_root=repaired_tree,
     )
-    assert completed.returncode == 0, completed.stderr
+    assert result.status is ExecutionStatus.SUCCEEDED, result.stderr[-2000:]
+    assert result.isolation.guard_receipt_verified is True, "ran without a verified guard"
+    outputs = Path(result.scratch_dir) / "outputs.json"
+    assert outputs.is_file(), "the run produced no outputs document"
 
     report = verify(
-        run_dir / "outputs.json",
+        outputs,
         contract,
         FilesystemReferenceReader(references.root),
         run_record=RunRecord(
             run_id="run-triad-1",
             snapshot_id=manifest.manifest_digest,
             runner_identity="retrace-runner",
-            environment_policy_digest="e" * 64,
-            execution_status=ExecutionStatus.SUCCEEDED,
+            environment_policy_digest=RUN_LIMITS.policy_digest,
+            execution_status=result.status,
             started_at=FIXED_MOMENT,
             finished_at=FIXED_MOMENT,
-            exit_code=0,
+            exit_code=result.exit_code,
         ),
         verified_at=FIXED_MOMENT,
     )
@@ -264,20 +310,42 @@ def test_case1_control_without_the_repair_the_same_run_fails(
     ever passes, case 1 proves nothing.
     """
     _, _, contract = approved
-    run_dir = tmp_path / "unrepaired"
-    (run_dir / "inputs").mkdir(parents=True)
-    (run_dir / REAL_PATH).write_text(CSV_BODY, encoding="utf-8")
-    (run_dir / "analysis.py").write_text(NOTEBOOK_SOURCE, encoding="utf-8")  # fault intact
-    completed = subprocess.run(  # noqa: S603 - fixed argv, fixture content only
-        [sys.executable, "analysis.py"], cwd=run_dir, capture_output=True, text=True, timeout=120
+    tree = tmp_path / "unrepaired"
+    tree.mkdir()
+    (tree / NOTEBOOK_NAME).write_text(FAULTY_NOTEBOOK_JSON, encoding="utf-8")  # fault intact
+
+    # Same materialised inputs as case 1: the ONLY difference is the unrepaired
+    # notebook. If the data were missing instead, this control would pass for the
+    # wrong reason and prove nothing about the repair.
+    store = ContentAddressedStore(tmp_path / "blobs-control")
+    manifest = snapshot_create(store, faulty_source)
+    run_dir = tmp_path / "run"
+    scratch = run_dir / "scratch"
+    scratch.mkdir(parents=True)
+    snapshot_materialise(store, manifest, scratch)
+    assert (scratch / REAL_PATH).is_file(), "the control did not materialise the inputs"
+
+    result = run_notebook(
+        tree / NOTEBOOK_NAME,
+        run_dir,
+        RUN_LIMITS,
+        run_id="triad-case-1-control",
+        source_root=tree,
     )
-    assert completed.returncode != 0, "the injected fault did not break the run"
-    assert "FileNotFoundError" in completed.stderr
-    assert not (run_dir / "outputs.json").exists(), "a failed run still produced outputs"
+    assert result.status is not ExecutionStatus.SUCCEEDED, (
+        "the injected fault did not break the run; case 1 would prove nothing"
+    )
+    # The traceback lands in cell_error, not stderr: stderr carries only kernel
+    # chatter, so asserting on it would have missed the actual failure reason.
+    assert result.cell_error is not None, "failed without recording a cell error"
+    assert "FileNotFoundError" in str(result.cell_error), result.cell_error
+    assert WRONG_PATH in str(result.cell_error), "failed for a different reason than the fault"
+    missing = Path(result.scratch_dir) / "outputs.json"
+    assert not missing.exists(), "a failed run still produced an outputs document"
 
     # And the verifier must not manufacture a verdict from an absent output file.
     report = verify(
-        run_dir / "outputs.json",
+        missing,
         contract,
         FilesystemReferenceReader(references.root),
         verified_at=FIXED_MOMENT,
@@ -440,7 +508,7 @@ def test_provider_abstains_rather_than_change_scientific_meaning(
         Diagnosis(
             diagnosis_id="d2",
             snapshot_id=manifest.manifest_digest,
-            target_path="analysis.py",
+            target_path=NOTEBOOK_NAME,
             fault_class=FaultClass.EXCLUSION_RULE_CHANGED,
             detail="injected: a meaning-changing fault the provider must refuse",
         ),
