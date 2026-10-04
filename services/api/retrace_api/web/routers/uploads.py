@@ -126,6 +126,10 @@ def upload_source(
         {
             "id": upload_id,
             "project_id": project_id,
+            # Recorded so promotion can check the stored path against the tenant
+            # it claims to belong to, rather than opening whatever path the
+            # record happens to carry.
+            "tenant_id": auth.tenant_id,
             "admitted": True,
             "detected_kind": detected.value,
             "member_paths": list(members),
@@ -152,10 +156,38 @@ def upload_source(
     return JSONResponse(body, status_code=status.HTTP_201_CREATED)
 
 
-def _admitted_from_record(record: dict[str, Any], state: ServiceState) -> AdmittedUpload:
+def _admitted_from_record(
+    record: dict[str, Any], state: ServiceState, *, tenant_id: str, quarantine_root: Path
+) -> AdmittedUpload:
+    """Rebuild an admitted upload from its index record, checking its path.
+
+    The recorded ``path`` is what promotion is about to open, so it is verified
+    against the authorised tenant's quarantine directory before anything reads
+    it. The index is server-written and tenant-scoped, so a record naming
+    another tenant's file should be impossible - which is exactly why a bug that
+    made it possible would otherwise be silent. The check is cheap and it is at
+    the point of the read.
+    """
+    recorded_tenant = str(record.get("tenant_id", ""))
+    if recorded_tenant and recorded_tenant != tenant_id:
+        raise UploadRefused(
+            "the upload record names a different tenant from the authorised workspace; "
+            "it was not read",
+            remedy="upload the source into this workspace",
+            extra={"reason": "upload-tenant-mismatch"},
+        )
+    path = Path(str(record["path"])).resolve()
+    permitted = (quarantine_root / tenant_id).resolve()
+    if path != permitted and permitted not in path.parents:
+        raise UploadRefused(
+            "the upload record names a path outside the authorised workspace's "
+            "quarantine directory; it was not read",
+            remedy="re-upload the source",
+            extra={"reason": "quarantine-path-escape"},
+        )
     quarantined = QuarantinedUpload(
         upload_id=str(record["id"]),
-        tenant_id=str(record.get("tenant_id", "")),
+        tenant_id=tenant_id,
         project_id=str(record["project_id"]),
         filename=str(record["filename"]),
         declared_content_type=str(record["declared_content_type"]),
@@ -197,8 +229,10 @@ def create_snapshot(
             remedy="correct the payload and upload it again",
             extra={"reason": str(record.get("reason", "unknown"))},
         )
-    admitted = _admitted_from_record(record, state)
     quarantine = state.quarantine()
+    admitted = _admitted_from_record(
+        record, state, tenant_id=auth.tenant_id, quarantine_root=quarantine.root
+    )
     data = quarantine.read(admitted.quarantined)
     staging_root = workspace.root / "_staging"
     staging_root.mkdir(parents=True, exist_ok=True)

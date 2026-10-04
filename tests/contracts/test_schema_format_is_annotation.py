@@ -19,7 +19,7 @@ import datetime as dt
 import json
 
 import pytest
-from conftest import build_approval, build_contract, digest
+from contracts_support import build_approval, build_contract, digest
 from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 from retrace_contracts import Approval, ReferenceInput

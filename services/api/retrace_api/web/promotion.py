@@ -19,12 +19,22 @@ path can be made to differ between those two readings (a name that normalises
 differently, a symlinked destination). The cheap check at the point of the write
 is the one that protects the write.
 
-WHY THE PER-MEMBER WRITE IS CAPPED AGAIN.
+WHY THE PER-MEMBER WRITE IS CAPPED AGAIN, AND WHAT THAT CAP ACTUALLY CATCHES.
 
-``ZipInfo.file_size`` is a DECLARED size from the archive's own metadata. A
-member can declare one size and decompress to another. The write therefore
-streams with its own cap and abandons the member if the stream exceeds it, so
-the bomb protection does not rest on attacker-supplied metadata.
+``ZipInfo.file_size`` is a DECLARED size from the archive's own metadata, so the
+write streams with its own cap rather than trusting it.
+
+Measured rather than assumed: CPython's ``ZipExtFile`` stops at the DECLARED
+size, so a member that declares a small size and carries more data is truncated
+by the reader and then fails its own CRC check - it does not reach the cap. The
+streaming cap is therefore defence in depth against a reader that does not
+truncate, and the refusal a crafted member actually produces today is
+``archive-member-unreadable``. Saying otherwise would be claiming a control
+fires on a path it does not.
+
+``BadZipFile`` is caught for that reason. A crafted archive raising it uncaught
+would be a 500 for a payload the service is supposed to refuse, and it would
+leave a partially written member behind.
 """
 
 from __future__ import annotations
@@ -87,33 +97,46 @@ def materialise_admitted(
             target = _safe_target(destination, name)
             target.parent.mkdir(parents=True, exist_ok=True)
             member_bytes = 0
-            with archive.open(name) as source, target.open("wb") as sink:
-                while True:
-                    chunk = source.read(_CHUNK)
-                    if not chunk:
-                        break
-                    member_bytes += len(chunk)
-                    total += len(chunk)
-                    if member_bytes > policy.max_archive_member_bytes:
-                        sink.close()
-                        target.unlink(missing_ok=True)
-                        raise _refuse(
-                            "archive-member-too-large",
-                            f"member {name!r} decompressed past the "
-                            f"{policy.max_archive_member_bytes} byte per-member cap; the "
-                            "declared size in the archive metadata was smaller",
-                            remedy="split or shrink the member",
-                        )
-                    if total > policy.max_archive_total_bytes:
-                        sink.close()
-                        target.unlink(missing_ok=True)
-                        raise _refuse(
-                            "archive-total-too-large",
-                            f"the archive decompressed past the "
-                            f"{policy.max_archive_total_bytes} byte total cap",
-                            remedy="split the archive",
-                        )
-                    sink.write(chunk)
+            try:
+                with archive.open(name) as source, target.open("wb") as sink:
+                    while True:
+                        chunk = source.read(_CHUNK)
+                        if not chunk:
+                            break
+                        member_bytes += len(chunk)
+                        total += len(chunk)
+                        if member_bytes > policy.max_archive_member_bytes:
+                            sink.close()
+                            target.unlink(missing_ok=True)
+                            raise _refuse(
+                                "archive-member-too-large",
+                                f"member {name!r} decompressed past the "
+                                f"{policy.max_archive_member_bytes} byte per-member cap; "
+                                "the declared size in the archive metadata was smaller",
+                                remedy="split or shrink the member",
+                            )
+                        if total > policy.max_archive_total_bytes:
+                            sink.close()
+                            target.unlink(missing_ok=True)
+                            raise _refuse(
+                                "archive-total-too-large",
+                                f"the archive decompressed past the "
+                                f"{policy.max_archive_total_bytes} byte total cap",
+                                remedy="split the archive",
+                            )
+                        sink.write(chunk)
+            except (zipfile.BadZipFile, OSError, EOFError, KeyError) as exc:
+                # A member whose data disagrees with its metadata raises here -
+                # a rewritten size, a damaged deflate stream, a CRC mismatch.
+                # Uncaught it would be a 500 for a crafted payload, and it would
+                # leave a partial file behind; both are refusals instead.
+                target.unlink(missing_ok=True)
+                raise _refuse(
+                    "archive-member-unreadable",
+                    f"member {name!r} could not be read: its stored data disagrees with "
+                    "the archive's own metadata, so nothing was promoted",
+                    remedy="re-create the archive",
+                ) from exc
             written.append(name)
     return tuple(written)
 

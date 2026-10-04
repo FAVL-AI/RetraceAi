@@ -1,0 +1,152 @@
+/* RETRACE AI design tokens (RX-19, RX-25).
+ *
+ * The three-form rule from docs/UX.md is load-bearing, not stylistic:
+ *   1. a COMPLETE light palette lives on bare `:root`;
+ *   2. dark is redefined under `@media (prefers-color-scheme: dark)` guarded by
+ *      `:root:not([data-theme="light"])`, so an explicit light choice wins over
+ *      the system preference;
+ *   3. dark is redefined AGAIN under `:root[data-theme="dark"]`, so an explicit
+ *      dark choice wins on a light system.
+ * No colour may have its only definition inside a media or [data-theme] block.
+ * A colour defined only in the dark block renders as `unset` for every light
+ * reader, which is how a "theme bug" becomes an unreadable state label.
+ * Enforced by tests/web/test_tokens.py through tests/web/checks.py.
+ *
+ * PROVENANCE OF VALUES. Every light value and every verification-state value is
+ * copied from the docs/UX.md tables. The DARK verification-state values are NOT
+ * in that document - it gives a light column only - so they are derived here and
+ * marked as derived. Their contrast is computed by test, not asserted by eye.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* --- surface and text: docs/UX.md light column ------------------------- */
+  --surface-canvas: #f7f7f5;
+  --surface-panel: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-sunken: #eeeeec;
+  --border-subtle: #e2e2de;
+  --border-strong: #c4c4be;
+  --text-primary: #16181a;
+  --text-secondary: #54585c;
+  --text-tertiary: #74797e;
+  --accent: #2d5d8f;
+  --focus-ring: #2d5d8f;
+
+  /* --- verification state: docs/UX.md light column ----------------------- */
+  --state-reproduced: #1f6b4a;
+  --state-unverified: #8a6a1f;
+  --state-changed: #9c4221;
+  --state-blocked: #5a4b8a;
+  --state-failed: #8c2f39;
+
+  /* --- typography: 1.2 ratio scale, body 14px ---------------------------- */
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  --text-size-12: 12px;
+  --text-size-13: 13px;
+  --text-size-14: 14px;
+  --text-size-16: 16px;
+  --text-size-19: 19px;
+  --text-size-23: 23px;
+  --text-size-28: 28px;
+  --text-body: var(--text-size-14);
+
+  /* --- space: 4px base --------------------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* --- radii and elevation: three levels, one direction ------------------ */
+  --radius-control: 4px;
+  --radius-panel: 6px;
+  --radius-chip: 2px;
+  --elevation-1: 0 1px 2px rgb(16 24 32 / 8%);
+  --elevation-2: 0 2px 6px rgb(16 24 32 / 10%);
+  --elevation-3: 0 6px 16px rgb(16 24 32 / 14%);
+
+  /* --- motion: collapsed to 0ms under prefers-reduced-motion ------------- */
+  --motion-state: 120ms;
+  --motion-panel: 180ms;
+  --motion-overlay: 240ms;
+  --motion-ease: ease-out;
+
+  /* --- density: comfortable is the default ------------------------------- */
+  --row-height: 40px;
+  --control-height: 32px;
+  --pointer-target-min: 24px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --surface-canvas: #121314;
+    --surface-panel: #1a1c1e;
+    --surface-raised: #212426;
+    --surface-sunken: #0e0f10;
+    --border-subtle: #2a2d30;
+    --border-strong: #3d4145;
+    --text-primary: #f0f1f2;
+    --text-secondary: #a8adb3;
+    --text-tertiary: #82878d;
+    --accent: #7aa7d4;
+    --focus-ring: #9cc2e8;
+
+    /* DERIVED in this build; not from docs/UX.md. Contrast computed by test. */
+    --state-reproduced: #5fbf93;
+    --state-unverified: #d9b35c;
+    --state-changed: #e0855f;
+    --state-blocked: #a99ae0;
+    --state-failed: #e4737f;
+
+    --elevation-1: 0 1px 2px rgb(0 0 0 / 40%);
+    --elevation-2: 0 2px 6px rgb(0 0 0 / 46%);
+    --elevation-3: 0 6px 16px rgb(0 0 0 / 54%);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-canvas: #121314;
+  --surface-panel: #1a1c1e;
+  --surface-raised: #212426;
+  --surface-sunken: #0e0f10;
+  --border-subtle: #2a2d30;
+  --border-strong: #3d4145;
+  --text-primary: #f0f1f2;
+  --text-secondary: #a8adb3;
+  --text-tertiary: #82878d;
+  --accent: #7aa7d4;
+  --focus-ring: #9cc2e8;
+
+  /* DERIVED in this build; not from docs/UX.md. Contrast computed by test. */
+  --state-reproduced: #5fbf93;
+  --state-unverified: #d9b35c;
+  --state-changed: #e0855f;
+  --state-blocked: #a99ae0;
+  --state-failed: #e4737f;
+
+  --elevation-1: 0 1px 2px rgb(0 0 0 / 40%);
+  --elevation-2: 0 2px 6px rgb(0 0 0 / 46%);
+  --elevation-3: 0 6px 16px rgb(0 0 0 / 54%);
+}
+
+:root[data-density="compact"] {
+  --row-height: 30px;
+  --control-height: 26px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-state: 0ms;
+    --motion-panel: 0ms;
+    --motion-overlay: 0ms;
+  }
+}

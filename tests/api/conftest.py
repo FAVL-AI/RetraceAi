@@ -1,0 +1,14 @@
+"""Fixture entry point for tests/api.
+
+The shared helpers live in `api_support.py` under a UNIQUE module name. Several
+test directories each had a `conftest.py`, and the test modules imported from it
+as a bare `conftest`, which resolves to whichever conftest landed in
+`sys.modules` first. That worked by luck of import order until it did not:
+running tests/api alongside tests/migrations made `from conftest import Harness`
+resolve to tests/migrations/conftest.py and five modules failed to collect.
+
+pytest discovers fixtures imported INTO a conftest, so the star-import below
+keeps every fixture visible while the name the tests import is unambiguous.
+"""
+
+from api_support import *  # noqa: F401,F403

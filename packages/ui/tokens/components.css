@@ -1,0 +1,387 @@
+/* RETRACE AI component styles (RX-19, RX-21, RX-25).
+ *
+ * Every value here is a token reference. A literal colour in this file would be
+ * invisible to the theme switch, so tests/web/test_tokens.py refuses one.
+ *
+ * ONE RULE WORTH STATING OUT LOUD: `var(--state-*)` may only be used inside the
+ * `.rx-outcome` namespace. The verification-state colours are the only colours
+ * in the system that carry meaning, and docs/UX.md forbids colour as the sole
+ * carrier. Confining them to the component that always emits an icon and the
+ * full text label is what makes "never colour-only" checkable instead of
+ * aspirational - any other surface that wanted to tint itself by outcome would
+ * have to go through that component. Enforced by
+ * tests/web/checks.py::state_token_scope_violations.
+ */
+
+/* --- primitives -------------------------------------------------------- */
+
+.rx-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+:where(button, [role="menuitem"], a, input, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.rx-button {
+  min-height: var(--control-height);
+  min-width: var(--pointer-target-min);
+  padding: 0 var(--space-3);
+  font: inherit;
+  color: var(--text-primary);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background var(--motion-state) var(--motion-ease);
+}
+
+.rx-button:hover {
+  background: var(--surface-sunken);
+}
+
+.rx-button[aria-disabled="true"] {
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.rx-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.rx-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- chips: bordered, text-primary on panel, never colour-only --------- */
+
+.rx-chip {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-height: var(--pointer-target-min);
+  padding: 0 var(--space-2);
+  font-size: var(--text-size-12);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-chip);
+}
+
+.rx-chip__glyph {
+  flex: none;
+}
+
+.rx-chip__gloss {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.rx-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.rx-chip-group__legend {
+  font-size: var(--text-size-12);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* --- verification outcome: icon + text + colour ------------------------ */
+
+.rx-outcome {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--rx-outcome-colour);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+}
+
+.rx-outcome__icon {
+  flex: none;
+  color: var(--rx-outcome-colour);
+}
+
+.rx-outcome__label {
+  font-size: var(--text-size-14);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.rx-outcome__qualifier {
+  font-size: var(--text-size-12);
+  color: var(--text-secondary);
+}
+
+.rx-outcome[data-outcome="REPRODUCED_WITHIN_CONTRACT"] {
+  --rx-outcome-colour: var(--state-reproduced);
+}
+
+.rx-outcome[data-outcome="EXECUTED_NOT_VERIFIED"] {
+  --rx-outcome-colour: var(--state-unverified);
+}
+
+.rx-outcome[data-outcome="CHANGED_RESULT"] {
+  --rx-outcome-colour: var(--state-changed);
+}
+
+.rx-outcome[data-outcome="BLOCKED_MISSING_EVIDENCE"] {
+  --rx-outcome-colour: var(--state-blocked);
+}
+
+.rx-outcome[data-outcome="FAILED_EXECUTION"] {
+  --rx-outcome-colour: var(--state-failed);
+}
+
+/* --- surface states: empty / loading / error / offline / stale / ... ---- */
+
+.rx-surface-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  color: var(--text-primary);
+  background: var(--surface-sunken);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-panel);
+}
+
+.rx-surface-state__title {
+  font-size: var(--text-size-14);
+  font-weight: 600;
+}
+
+.rx-surface-state__reason {
+  font-size: var(--text-size-13);
+  color: var(--text-secondary);
+}
+
+.rx-stale-frame {
+  position: relative;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-panel);
+  padding: var(--space-2);
+  background: var(--surface-sunken);
+}
+
+.rx-stale-frame__banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-size-13);
+  color: var(--text-primary);
+}
+
+.rx-stale-frame__content {
+  opacity: 0.72;
+}
+
+/* --- panels ------------------------------------------------------------ */
+
+.rx-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--elevation-1);
+}
+
+.rx-panel:focus-within {
+  border-color: var(--border-strong);
+}
+
+.rx-panel__bar {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: var(--row-height);
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rx-panel__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-size-13);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rx-panel__grip {
+  min-width: var(--pointer-target-min);
+  min-height: var(--pointer-target-min);
+  color: var(--text-secondary);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  cursor: grab;
+}
+
+.rx-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-3);
+  overflow: auto;
+}
+
+.rx-panel[data-collapsed="true"] .rx-panel__body {
+  display: none;
+}
+
+.rx-panel__resizer {
+  min-height: var(--pointer-target-min);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-sunken);
+  cursor: ns-resize;
+}
+
+/* --- menu -------------------------------------------------------------- */
+
+.rx-menu {
+  position: absolute;
+  z-index: 20;
+  min-width: 220px;
+  padding: var(--space-1);
+  margin: 0;
+  list-style: none;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  box-shadow: var(--elevation-3);
+}
+
+.rx-menu__item {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: var(--pointer-target-min);
+  padding: var(--space-1) var(--space-2);
+  font: inherit;
+  color: var(--text-primary);
+  text-align: start;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.rx-menu__item:hover {
+  background: var(--surface-sunken);
+}
+
+.rx-menu__keys {
+  font-family: var(--font-mono);
+  font-size: var(--text-size-12);
+  color: var(--text-secondary);
+}
+
+/* --- tables ------------------------------------------------------------ */
+
+.rx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-size-13);
+}
+
+.rx-table th,
+.rx-table td {
+  height: var(--row-height);
+  padding: 0 var(--space-2);
+  text-align: start;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rx-table th {
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rx-table td.rx-num,
+.rx-table th.rx-num {
+  text-align: end;
+}
+
+.rx-table__scroll {
+  overflow-x: auto;
+}
+
+/* --- diff (read-only comparison) --------------------------------------- */
+
+.rx-diff {
+  margin: 0;
+  padding: var(--space-2);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-size-13);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+}
+
+.rx-diff__line {
+  display: block;
+  white-space: pre;
+}
+
+.rx-diff__line[data-kind="added"] {
+  border-left: 3px solid var(--border-strong);
+  padding-left: var(--space-2);
+}
+
+.rx-diff__line[data-kind="removed"] {
+  border-left: 3px dotted var(--border-strong);
+  padding-left: var(--space-2);
+}
+
+.rx-diff__sigil {
+  display: inline-block;
+  width: 2ch;
+  color: var(--text-secondary);
+}
+
+.rx-definition {
+  display: grid;
+  grid-template-columns: minmax(10ch, 22ch) 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--text-size-13);
+}
+
+.rx-definition dt {
+  color: var(--text-secondary);
+}
+
+.rx-definition dd {
+  margin: 0;
+  color: var(--text-primary);
+}

@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 
 import pytest
-from conftest import SEMICOLON_CSV, corrupt_blob, write_tree
+from domain_support import SEMICOLON_CSV, corrupt_blob, write_tree
 from retrace_contracts import SnapshotIntegrityError, sha256_hex
 from retrace_domain import (
     ContentAddressedStore,

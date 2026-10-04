@@ -12,7 +12,7 @@ import stat
 from pathlib import Path
 
 import pytest
-from conftest import corrupt_blob
+from domain_support import corrupt_blob
 from retrace_contracts import SnapshotIntegrityError, sha256_hex
 from retrace_domain import BLOB_MODE, ContentAddressedStore, hash_file, is_sha256_hex
 

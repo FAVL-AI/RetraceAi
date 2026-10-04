@@ -1,0 +1,14 @@
+{
+  "name": "@retrace/ui",
+  "private": true,
+  "version": "0.0.0",
+  "description": "RETRACE AI design tokens and framework-free UI primitives",
+  "license": "UNLICENSED",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./tokens.css": "./tokens/tokens.css",
+    "./components.css": "./tokens/components.css"
+  },
+  "sideEffects": false
+}

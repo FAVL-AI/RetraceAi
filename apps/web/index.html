@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RETRACE AI workspace</title>
+
+    <!-- The API origin. Left EMPTY on purpose: with no origin every call
+         reports NEEDS_CONFIGURATION with a reason, which is the honest state of
+         this build. An integrator sets the content attribute; nothing else in
+         the workspace needs changing.
+    <meta name="retrace-api-base" content="https://api.example.invalid" />
+    -->
+
+    <link rel="stylesheet" href="../../packages/ui/tokens/tokens.css" />
+    <link rel="stylesheet" href="../../packages/ui/tokens/components.css" />
+    <link rel="stylesheet" href="styles/app.css" />
+  </head>
+  <body>
+    <a class="rx-visually-hidden" href="#rx-root">Skip to the workspace</a>
+    <div id="rx-root"></div>
+    <noscript>
+      <p>
+        The RETRACE workspace is rendered in the browser from standards-based ES
+        modules and needs JavaScript. No server-rendered fallback exists in this
+        build; this message is the honest state rather than a blank page.
+      </p>
+    </noscript>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>

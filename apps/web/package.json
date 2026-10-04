@@ -1,0 +1,8 @@
+{
+  "name": "@retrace/web",
+  "private": true,
+  "version": "0.0.0",
+  "description": "RETRACE AI browser workspace - standards-based ES modules, no bundler",
+  "license": "UNLICENSED",
+  "type": "module"
+}

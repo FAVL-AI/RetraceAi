@@ -1,0 +1,265 @@
+/* Workspace layout (docs/UX.md "Workspace").
+ *
+ * A CSS grid, five areas: header across the top, navigation on the left, the
+ * panel surface in the centre, the context inspector on the right, the timeline
+ * and console along the bottom. Below 960px the three columns stack, because a
+ * three-column workspace at phone width is a column of slivers.
+ *
+ * Only token references appear here. A literal colour would survive the theme
+ * switch unchanged, which is how a "dark mode" ends up with one white panel.
+ */
+
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-body);
+  line-height: 1.45;
+  color: var(--text-primary);
+  background: var(--surface-canvas);
+}
+
+.rx-shell {
+  display: grid;
+  grid-template-areas:
+    "header header header"
+    "nav centre right"
+    "nav bottom bottom";
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-rows: auto minmax(0, 1fr) minmax(160px, auto);
+  gap: var(--space-2);
+  min-height: 100vh;
+  padding: var(--space-2);
+  box-sizing: border-box;
+}
+
+.rx-shell__header {
+  grid-area: header;
+}
+
+.rx-shell__nav {
+  grid-area: nav;
+  min-width: 0;
+}
+
+.rx-slot--centre {
+  grid-area: centre;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.rx-slot--right {
+  grid-area: right;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.rx-slot--bottom {
+  grid-area: bottom;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.rx-panel[data-size="1"] { flex: 1 1 0; }
+.rx-panel[data-size="2"] { flex: 2 1 0; }
+.rx-panel[data-size="3"] { flex: 3 1 0; }
+.rx-panel[data-size="4"] { flex: 4 1 0; }
+.rx-panel[data-size="5"] { flex: 5 1 0; }
+.rx-panel[data-size="6"] { flex: 6 1 0; }
+.rx-panel[data-size="7"] { flex: 7 1 0; }
+.rx-panel[data-size="8"] { flex: 8 1 0; }
+
+.rx-panel[data-floating="true"] {
+  box-shadow: var(--elevation-3);
+  border-color: var(--border-strong);
+}
+
+/* --- header ------------------------------------------------------------ */
+
+.rx-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+}
+
+.rx-header__mark {
+  font-size: var(--text-size-16);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.rx-header__project,
+.rx-header__user,
+.rx-header__theme,
+.rx-header__clock,
+.rx-header__connection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.rx-header__prompt {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.rx-header__prompt .rx-surface-state {
+  padding: var(--space-2);
+}
+
+/* --- navigation -------------------------------------------------------- */
+
+.rx-nav {
+  height: 100%;
+  padding: var(--space-2);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+  box-sizing: border-box;
+}
+
+.rx-nav__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rx-nav__link {
+  display: flex;
+  align-items: center;
+  min-height: var(--row-height);
+  padding: 0 var(--space-2);
+  color: var(--text-primary);
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+}
+
+.rx-nav__link:hover {
+  background: var(--surface-sunken);
+}
+
+/* The current item is marked by text weight, a left rule and aria-current -
+ * never by background colour alone. */
+.rx-nav__link[aria-current="page"] {
+  font-weight: 700;
+  background: var(--surface-sunken);
+  border-color: var(--border-strong);
+  border-left-width: 3px;
+}
+
+.rx-nav__link[aria-current="page"]::after {
+  content: " \2022";
+  color: var(--text-secondary);
+}
+
+/* --- inspector and console --------------------------------------------- */
+
+.rx-inspector,
+.rx-console {
+  padding: var(--space-3);
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+}
+
+.rx-console__body {
+  max-height: 240px;
+  overflow: auto;
+}
+
+/* --- shared content blocks --------------------------------------------- */
+
+.rx-attributes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rx-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding: var(--space-2) 0;
+}
+
+.rx-strip__cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 160px;
+}
+
+.rx-section-note h3,
+.rx-inspector h3 {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--text-size-14);
+}
+
+.rx-section-note p {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-size-13);
+  color: var(--text-secondary);
+}
+
+.rx-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  margin: var(--space-2);
+  font-size: var(--text-size-13);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-panel);
+}
+
+.rx-fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-panel);
+}
+
+.rx-choice {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-height: var(--pointer-target-min);
+}
+
+@media (max-width: 960px) {
+  .rx-shell {
+    grid-template-areas:
+      "header"
+      "nav"
+      "centre"
+      "right"
+      "bottom";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
+  }
+}

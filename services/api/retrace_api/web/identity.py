@@ -33,10 +33,22 @@ is acceptable for a hosted deployment, and both are listed as limitations.
 NO PASSWORD STORE, NO TOKEN FORMAT, NO CUSTOM CRYPTOGRAPHY.
 
 RX-45 specifies OIDC and forbids custom cryptography. Session identifiers are
-opaque random strings from :mod:`secrets` compared with
-:func:`secrets.compare_digest`; they carry no claims, so there is nothing to
-sign and no signature to get wrong. Authenticating a human is the identity
-provider's job, and no provider is configured here.
+opaque 32-byte random strings from :mod:`secrets`; they carry no claims, so
+there is nothing to sign and no signature to get wrong. Authenticating a human
+is the identity provider's job, and no provider is configured here.
+
+WHAT IS AND IS NOT COMPARED IN CONSTANT TIME, STATED ACCURATELY.
+
+The CSRF token IS compared with :func:`secrets.compare_digest`, in
+:func:`csrf_tokens_match`. The session identifier is NOT: :meth:`SessionStore
+.resolve` is a dictionary lookup, which is not constant-time with respect to the
+key. That is a deliberate trade and it is recorded rather than described as
+something it is not - a linear constant-time scan of every live session would
+make the lookup O(sessions) on every request, and the identifier it protects is
+32 bytes of entropy that an attacker would have to recover through a hash-table
+timing signal. If that trade is ever revisited, the remedy is a keyed lookup of
+a short prefix followed by a constant-time comparison of the remainder, not a
+scan.
 """
 
 from __future__ import annotations

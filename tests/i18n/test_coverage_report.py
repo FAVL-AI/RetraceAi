@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from helpers import catalogue_from, entry
+from i18n_support import catalogue_from, entry
 from retrace_i18n.catalogue import Catalogue
 from retrace_i18n.coverage import build_report, locale_coverage, report_path, write_report
 from retrace_i18n.registry import LocaleRegistry

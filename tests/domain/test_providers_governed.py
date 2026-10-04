@@ -24,7 +24,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from conftest import SEMICOLON_CSV, WRONG_PATH_SOURCE, write_tree
+from domain_support import SEMICOLON_CSV, WRONG_PATH_SOURCE, write_tree
 from retrace_domain import (
     AbstentionReason,
     AuthorityRule,

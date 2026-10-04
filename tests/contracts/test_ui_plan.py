@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from conftest import ALLOWLISTS, build_component, build_plan, protected_components
+from contracts_support import ALLOWLISTS, build_component, build_plan, protected_components
 from retrace_contracts import (
     PROTECTED_REGION_IDS,
     UIAllowlists,

@@ -20,12 +20,23 @@ establishing nothing. :class:`IdentityProviderNotConfigured` is that refusal.
 
 WHY EXECUTION HAS ITS OWN REFUSAL CLASS.
 
-T2 is measured and OPEN: a child process can write the approval ledger, a
-reference output, verifier code or a verification verdict, and nothing denies
-it. Until execution runs inside the confinement the threat model describes, an
+T2 has two halves and only one of them is closed. The FILESYSTEM half is closed
+over declared paths by ``FilesystemConfinement.KERNEL_MOUNT_NAMESPACE``, which
+inverted a measured four-for-four ALLOWED to four-for-four DENIED. The IDENTITY
+half is OPEN: the confined child runs under the same uid as the runner, and the
+runner and verifier hold no distinct restricted database credentials. A run
+under those conditions could not be distinguished from one whose result was
+manufactured by the same identity that is meant to be judging it, so an
 execution endpoint that returned anything success-shaped would be a fabricated
-result. :class:`ExecutionBlocked` is the documented blocked state, it names T2,
-and it is distinguishable from both an authorisation failure and a server fault.
+result. :class:`ExecutionBlocked` is the documented blocked state, it names T2
+and which half is open, and it is distinguishable from both an authorisation
+failure and a server fault.
+
+Keeping that distinction accurate is part of the refusal's job. An earlier
+version of this message asserted that nothing denied a child's write to the
+approval ledger - true when it was written, and false once the filesystem half
+closed. A refusal that misstates which control is missing sends a reader to fix
+the wrong thing.
 """
 
 from __future__ import annotations
@@ -40,14 +51,18 @@ __all__ = [
     "CsrfRefused",
     "EvidenceImportRefused",
     "ExecutionBlocked",
+    "ExecutionProfileNotConfigured",
     "IdempotencyRefused",
     "IdentityProviderNotConfigured",
     "NEEDS_CONFIGURATION",
     "NotFound",
+    "RequestBodyTooLarge",
     "ServerEstablishedFieldRefused",
     "SessionRequired",
     "T2_BLOCKED_STATE",
+    "T2_DOCUMENT",
     "T2_REFERENCE",
+    "T2_SECTION_HEADING",
     "TenantContextMissing",
     "UploadRefused",
     "WorkspaceNotAuthorised",
@@ -59,7 +74,12 @@ NEEDS_CONFIGURATION: Final = "NEEDS_CONFIGURATION"
 
 #: The documented blocked state for execution. Named in the response body so the
 #: refusal is machine-readable and cannot be mistaken for a transient outage.
-T2_BLOCKED_STATE: Final = "BLOCKED_EXECUTION_NOT_CONFINED"
+#:
+#: It names the IDENTITY half specifically. The previous spelling,
+#: ``BLOCKED_EXECUTION_NOT_CONFINED``, became wrong when the filesystem half
+#: closed: a client branching on it would have read "not confined" and concluded
+#: the mount namespace was the missing piece, which it is not.
+T2_BLOCKED_STATE: Final = "BLOCKED_EXECUTION_IDENTITY_NOT_SEPARATED"
 
 #: Where the measurement behind that state is recorded. A refusal that cites no
 #: evidence is an assertion.
@@ -225,6 +245,50 @@ class UploadRefused(ApiRefusal):
     code = "UPLOAD_REFUSED"
 
 
+class RequestBodyTooLarge(ApiRefusal):
+    """The request body exceeded the ceiling the service will buffer (RX-42, RX-51).
+
+    Raised by the idempotency dependency, which must digest the body before the
+    handler runs. Separate from :class:`UploadRefused` on purpose: this refusal
+    is about the HTTP request, is measured before any admission rule has seen a
+    single byte of the payload, and names the configured ceiling rather than an
+    admission policy. Conflating the two would make an upload that is within the
+    admitted size but wrapped in an enormous multipart envelope report
+    ``size-cap-exceeded``, pointing a caller at the wrong limit.
+    """
+
+    status_code = 413
+    code = "REQUEST_BODY_TOO_LARGE"
+
+
+class ExecutionProfileNotConfigured(ApiRefusal):
+    """The confinement declaration a run needs is not fully configured (RX-08).
+
+    Serves the third open item of T2: confinement is *declared-deny*, so the
+    declaration is part of the control. A profile assembled from guessed paths
+    would be a declaration nobody reviewed, and the validator in
+    ``retrace_runner.policy`` cannot tell a reviewed list from an invented one.
+    So the absent settings are named and the route refuses with
+    ``NEEDS_CONFIGURATION`` - distinguishable from
+    :class:`ExecutionBlocked`, which is what a FULLY configured deployment gets
+    and which reports a measured threat rather than a missing setting.
+    """
+
+    status_code = 503
+    code = "EXECUTION_PROFILE_NOT_CONFIGURED"
+
+    def __init__(self, detail: str, *, remedy: str, missing: tuple[str, ...] = ()) -> None:
+        super().__init__(
+            detail,
+            remedy=remedy,
+            extra={
+                "status": NEEDS_CONFIGURATION,
+                "missing": list(missing),
+                "reference": T2_REFERENCE,
+            },
+        )
+
+
 class ContractApprovalRefused(ApiRefusal):
     """A contract-approval operation was refused by the ledger (RX-04, RX-05).
 
@@ -288,13 +352,20 @@ class IdentityProviderNotConfigured(ApiRefusal):
 
 
 class ExecutionBlocked(ApiRefusal):
-    """Execution is gated because threat T2 is open and unmitigated.
+    """Execution is gated because threat T2's IDENTITY half is open.
 
-    Serves RX-08 and the T2 row of ``docs/security/THREAT_MODEL.md``. The
-    endpoint exists, authenticates, authorises and validates - and then refuses,
-    naming the threat and the blocked state. It is NOT a 500: nothing failed.
-    It is NOT a success: nothing ran. ``context.transient`` is false so a client
-    does not retry a gate that will not open without a deployment change.
+    Serves RX-08, RX-09 and the T2 row of ``docs/security/THREAT_MODEL.md``. The
+    endpoint exists, authenticates, authorises, validates, resolves the contract
+    and the snapshot, and builds the confined execution profile it WOULD have
+    used - and then refuses, naming the threat, which half is open, and the
+    profile. It is NOT a 500: nothing failed. It is NOT a success: nothing ran.
+    ``context.transient`` is false so a client does not retry a gate that will
+    not open without a deployment change.
+
+    Reporting the profile is the point of the extra context. When the identity
+    half closes, the already-confined profile is what gets executed; nobody has
+    to invent one, and a reviewer can see today which paths a future verdict
+    would have covered.
     """
 
     status_code = 503

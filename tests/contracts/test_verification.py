@@ -9,7 +9,7 @@ a reproduction claim that its own contents do not support.
 from __future__ import annotations
 
 import pytest
-from conftest import T0, T2, build_check, build_report, build_run_record, digest
+from contracts_support import T0, T2, build_check, build_report, build_run_record, digest
 from pydantic import ValidationError
 from retrace_contracts import (
     CheckResult,

@@ -20,7 +20,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from conftest import (
+from domain_support import (
     COMMA_CSV,
     NO_DELIMITER_SOURCE,
     SEMICOLON_CSV,

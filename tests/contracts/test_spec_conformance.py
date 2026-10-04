@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from conftest import build_contract, digest
+from contracts_support import build_contract, digest
 from jsonschema import Draft202012Validator
 from retrace_contracts.export_schemas import default_output_directory
 

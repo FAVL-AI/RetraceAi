@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from conftest import AUTHOR, T0, T2, build_bundle, build_check, digest
+from contracts_support import AUTHOR, T0, T2, build_bundle, build_check, digest
 from pydantic import ValidationError
 from retrace_contracts import (
     RO_CRATE_1_1_CONTEXT,

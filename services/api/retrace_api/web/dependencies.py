@@ -24,6 +24,16 @@ workspace the victim belongs to must be refused as CSRF, and resolving
 membership first would do a directory lookup on behalf of an attacker-initiated
 request. Membership last, and it is a lookup against stored state - never a
 comparison against anything in the request.
+
+WHY THE IDEMPOTENCY DEPENDENCY DOES NOT READ THE BODY ITSELF.
+
+RX-53 needs a digest of the request body, and the obvious implementation -
+``await request.body()`` in the dependency - was wrong in two ways at once: it
+raised ``RuntimeError: Stream consumed`` on every multipart route, because
+FastAPI parses a form before it solves dependencies, and it buffered an
+unbounded payload on every other route. Both are now handled outside the router
+by :class:`retrace_api.web.request_limits.RequestBodyCeiling`, and
+:func:`buffered_request_body` reads what that middleware left in the ASGI scope.
 """
 
 from __future__ import annotations
@@ -52,14 +62,17 @@ from retrace_api.web.identity import (
     WorkspaceRole,
     csrf_tokens_match,
 )
+from retrace_api.web.request_limits import BODY_SCOPE_KEY, BODY_UNBUFFERED_MESSAGE
 from retrace_api.web.state import ServiceState
 
 __all__ = [
     "AuthorisedWorkspace",
     "Authorised",
+    "IGNORED_IDENTITY_HEADERS",
     "IdempotencyScope",
     "SAFE_METHODS",
     "authorised_workspace",
+    "buffered_request_body",
     "current_session",
     "idempotency_scope",
     "require_role",
@@ -251,6 +264,27 @@ class IdempotencyScope:
             )
 
 
+def buffered_request_body(request: Request) -> bytes:
+    """The body :class:`RequestBodyCeiling` buffered for this request.
+
+    Serves RX-42, RX-51 and RX-53. Reading it from the ASGI scope rather than
+    from the request is the whole point: FastAPI parses a form before it solves
+    dependencies, and Starlette's form parser consumes the stream without
+    caching it, so by the time a dependency runs on a multipart route there is
+    nothing left to read. See :mod:`retrace_api.web.request_limits`.
+
+    Raises ``RuntimeError`` when the middleware is absent. That is a wiring
+    error, and the alternative is worse than a loud failure: a dependency that
+    quietly digested an empty body would give every request on that route the
+    same digest, so two genuinely different requests would share one
+    idempotency key and the second would be served the first one's response.
+    """
+    body = request.scope.get(BODY_SCOPE_KEY)
+    if not isinstance(body, bytes):
+        raise RuntimeError(BODY_UNBUFFERED_MESSAGE)
+    return body
+
+
 async def idempotency_scope(
     request: Request,
     state: Annotated[ServiceState, Depends(service_state)],
@@ -263,7 +297,7 @@ async def idempotency_scope(
     and retry with the same one. Only a COMPLETED response is replayable.
     """
     key = state.idempotency.validate_key(request.headers.get(IDEMPOTENCY_HEADER_NAME))
-    body = await request.body()
+    body = buffered_request_body(request)
     digest = request_digest(
         method=request.method, route=auth.route, tenant_id=auth.tenant_id, body=body
     )

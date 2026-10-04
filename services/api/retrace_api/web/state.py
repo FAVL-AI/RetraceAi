@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 
 import sqlalchemy as sa
 from retrace_api.web.admission import DEFAULT_ADMISSION_POLICY, AdmissionPolicy, QuarantineArea
-from retrace_api.web.config import ApiConfig
+from retrace_api.web.config import ApiConfig, ConfigurationError
 from retrace_api.web.idempotency import IdempotencyStore
 from retrace_api.web.identity import MembershipDirectory, SessionStore
 from retrace_api.web.repository import InMemoryRepository, Repository, SqlRepository
@@ -57,6 +57,27 @@ class ServiceState:
     #: not generate proposals, it records the one the caller submitted, and a
     #: provider identifier that implied otherwise would be a fabrication.
     proposal_provider_id: str = "api-submitted"
+
+    def __post_init__(self) -> None:
+        """Refuse a wiring whose two size ceilings contradict each other.
+
+        ``config.max_request_body_bytes`` bounds the body the idempotency
+        dependency will buffer; ``admission_policy.max_upload_bytes`` bounds the
+        payload admission will accept. If the first is not larger than the
+        second, an upload of exactly the admitted size is refused by the request
+        ceiling instead - a 413 naming the wrong limit, for a payload the
+        admission policy says is fine. Caught here rather than at request time,
+        because a misconfigured ceiling should stop a deployment starting rather
+        than surface as a confusing refusal under load.
+        """
+        if self.config.max_request_body_bytes <= self.admission_policy.max_upload_bytes:
+            raise ConfigurationError(
+                f"max_request_body_bytes={self.config.max_request_body_bytes} is not "
+                f"greater than the admission policy's max_upload_bytes="
+                f"{self.admission_policy.max_upload_bytes}; an upload of exactly the "
+                "admitted size would be refused by the request ceiling, naming the "
+                "wrong limit. Leave room for multipart framing as well"
+            )
 
     def now(self) -> dt.datetime:
         value = self.clock()

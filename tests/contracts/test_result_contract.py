@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from conftest import (  # noqa: F401
+from contracts_support import (  # noqa: F401
     AUTHOR,
     SERVER_ESTABLISHED,
     build_approval,

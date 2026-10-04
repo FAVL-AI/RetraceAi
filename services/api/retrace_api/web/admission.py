@@ -51,6 +51,7 @@ form within declared limits - nothing more.
 
 from __future__ import annotations
 
+import codecs
 import datetime as dt
 import hashlib
 import io
@@ -71,6 +72,7 @@ __all__ = [
     "AdmittedUpload",
     "DetectedKind",
     "MACRO_ENABLED_SUFFIXES",
+    "NOTEBOOK_MARKER",
     "OLE2_MAGIC",
     "PICKLE_MAGIC",
     "QuarantineArea",
@@ -101,6 +103,12 @@ PICKLE_MAGIC: Final[tuple[bytes, ...]] = (
     b"c__builtin__\n",
     b"c__main__\n",
 )
+
+#: The key that distinguishes a notebook from any other JSON document. Searched
+#: for across the whole payload, never only in the sniff prefix: every notebook
+#: writer emits `nbformat` after `cells`, so in a real notebook it is nowhere
+#: near the first 512 bytes.
+NOTEBOOK_MARKER: Final[bytes] = b'"nbformat"'
 
 #: Legacy OLE2 compound-document signature. Covers the pre-2007 Office formats
 #: and any other compound document; refused without further parsing.
@@ -257,6 +265,23 @@ def sniff(data: bytes) -> DetectedKind:
 
     Signature checks come first and the text heuristics last, so a payload that
     *starts* like text but matches a refused signature is still refused.
+
+    TWO THINGS ARE DELIBERATELY NOT DECIDED FROM THE PREFIX ALONE.
+
+    The prefix is decoded with an INCREMENTAL decoder. A fixed 512-byte slice of
+    valid UTF-8 can end in the middle of a multi-byte character, and a strict
+    ``bytes.decode`` would raise on that - refusing a perfectly good document for
+    the position of one character. ``final=False`` tolerates the truncated tail
+    and still raises on bytes that are genuinely not UTF-8.
+
+    The notebook marker is searched for across the WHOLE payload. ``nbformat``
+    and ``nbformat_minor`` are written AFTER ``cells`` by every notebook writer,
+    so in any real notebook they sit far beyond 512 bytes. Deciding notebook-ness
+    from the prefix therefore classified every real notebook as plain ``JSON``,
+    and a notebook correctly declared ``application/x-ipynb+json`` was refused as
+    a content-type mismatch - a legitimate upload refused by the rule meant to
+    catch a lying one. The payload is already fully in memory and bounded by
+    ``max_upload_bytes``, so the wider search costs one scan of a capped buffer.
     """
     if not data:
         raise _refuse(
@@ -294,7 +319,7 @@ def sniff(data: bytes) -> DetectedKind:
             status_code=415,
         )
     try:
-        text = prefix.decode("utf-8")
+        text = codecs.getincrementaldecoder("utf-8")().decode(prefix, False)
     except UnicodeDecodeError as exc:
         raise _refuse(
             "unrecognised-bytes",
@@ -304,7 +329,7 @@ def sniff(data: bytes) -> DetectedKind:
         ) from exc
     stripped = text.lstrip("﻿ \t\r\n")
     if stripped.startswith(("{", "[")):
-        return DetectedKind.NOTEBOOK if '"nbformat"' in text else DetectedKind.JSON
+        return DetectedKind.NOTEBOOK if NOTEBOOK_MARKER in data else DetectedKind.JSON
     first_line = stripped.split("\n", 1)[0]
     if ("," in first_line or "\t" in first_line) and first_line.strip():
         return DetectedKind.CSV
@@ -466,8 +491,23 @@ def _inspect_archive(data: bytes, policy: AdmissionPolicy) -> tuple[str, ...]:
             # container's signature or a pickle stream hiding behind an admitted
             # extension. `open` on a ZipInfo decompresses lazily, and only this
             # prefix is ever produced.
-            with archive.open(info) as member:
-                prefix = member.read(_SNIFF_BYTES)
+            #
+            # BadZipFile is CAUGHT, not allowed to propagate. A member whose
+            # central-directory metadata disagrees with its data - a rewritten
+            # size, a damaged deflate stream, a CRC that does not match - raises
+            # here, and an uncaught raise would leave the route reporting a 500
+            # for a crafted payload. That is a refusal, not a server fault, and
+            # a 500 on a crafted payload is also an availability finding.
+            try:
+                with archive.open(info) as member:
+                    prefix = member.read(_SNIFF_BYTES)
+            except (zipfile.BadZipFile, OSError, EOFError) as exc:
+                raise _refuse(
+                    "archive-member-unreadable",
+                    f"member {info.filename!r} could not be read: its stored data "
+                    "disagrees with the archive's own metadata",
+                    remedy="re-create the archive",
+                ) from exc
             for signature in PICKLE_MAGIC:
                 if prefix.startswith(signature):
                     raise _refuse(

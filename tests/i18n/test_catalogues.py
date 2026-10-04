@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from helpers import catalogue_from, entry, plural_entry
+from i18n_support import catalogue_from, entry, plural_entry
 from retrace_i18n.catalogue import (
     FLAG_BETA,
     FLAG_FALLBACK,

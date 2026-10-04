@@ -10,7 +10,7 @@ and pads the translatable text - because a gentle pass would not distinguish
 from __future__ import annotations
 
 import pytest
-from helpers import catalogue_from, entry
+from i18n_support import catalogue_from, entry
 from retrace_i18n.catalogue import Catalogue
 from retrace_i18n.labels import TRUTHFULNESS_MESSAGE_KEYS, TRUTHFULNESS_TOKENS
 from retrace_i18n.protected import (

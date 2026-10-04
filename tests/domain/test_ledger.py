@@ -14,7 +14,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from conftest import T0, T1, T2, digest
+from domain_support import T0, T1, T2, digest
 from retrace_contracts import Approval, ApprovalInvalidated, ContractNotApproved
 from retrace_domain import (
     GENESIS_DIGEST,

@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import pytest
-from conftest import VALID_DIFF, build_proposal
+from contracts_support import VALID_DIFF, build_proposal
 from pydantic import ValidationError
 from retrace_contracts import (
     MAX_DIFF_BYTES,

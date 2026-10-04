@@ -7,7 +7,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
-from conftest import AUTHOR, T0, build_approval, digest
+from contracts_support import AUTHOR, T0, build_approval, digest
 from pydantic import ValidationError
 from retrace_contracts import Approval, ApprovalInvalidated, ContractImmutable
 

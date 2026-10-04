@@ -18,7 +18,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
-from helpers import synthetic_registry
+from i18n_support import synthetic_registry
 from retrace_i18n.plurals import (
     Operands,
     PluralCategoryMismatch,

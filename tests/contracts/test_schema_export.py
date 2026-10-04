@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 import pytest
-from conftest import (
+from contracts_support import (
     build_approval,
     build_bundle,
     build_contract,
