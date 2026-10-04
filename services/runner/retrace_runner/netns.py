@@ -30,8 +30,10 @@ from typing import Final
 
 __all__ = [
     "NAMESPACE_LIMITS",
+    "NamespaceUnavailable",
     "NetworkNamespaceUnavailable",
     "bring_loopback_up",
+    "enter_namespaces",
     "enter_private_network_namespace",
     "namespace_support_reason",
 ]
@@ -51,7 +53,16 @@ NAMESPACE_LIMITS: Final[tuple[str, ...]] = (
 )
 
 
-class NetworkNamespaceUnavailable(RuntimeError):
+class NamespaceUnavailable(RuntimeError):
+    """A requested kernel namespace could not be entered (RX-08).
+
+    The base of every namespace refusal raised by this package. A caller that
+    asked for *any* kernel namespace and sees this must refuse the run: there is
+    no member of this hierarchy that means "proceeded with less isolation".
+    """
+
+
+class NetworkNamespaceUnavailable(NamespaceUnavailable):
     """A private network namespace could not be created (RX-08)."""
 
 
@@ -71,13 +82,68 @@ def namespace_support_reason() -> str | None:
     return None
 
 
-def enter_private_network_namespace() -> dict[str, str]:
-    """Move the calling process into a new user+network namespace (RX-08).
+def enter_namespaces(clone_flags: int, *, capability: str) -> dict[str, str]:
+    """Unshare ``clone_flags`` and write identity id maps (RX-08).
+
+    The single primitive behind every kernel namespace the runner can request,
+    because ``CLONE_NEWUSER`` must be unshared **once**: the child needs one
+    user namespace in which it holds the capabilities that both a private
+    network namespace and a private mount namespace require. Two separate
+    ``unshare`` calls would nest user namespaces and leave the second one
+    unable to write an unprivileged id map.
+
+    ``capability`` names the caller's request so a refusal says which capability
+    could not be established rather than only quoting ``errno``.
 
     Writes an identity uid/gid mapping so file ownership keeps working, and
     denies ``setgroups`` first as the kernel requires for an unprivileged
     mapping. Returns a small record of what was established, for the
     environment manifest.
+
+    Raises
+    ------
+    NamespaceUnavailable:
+        If the namespaces cannot be created or the mappings cannot be written.
+        The caller must refuse the run; there is no partial success here.
+    """
+    if not clone_flags:
+        raise NamespaceUnavailable(f"{capability}: no namespace flags requested")
+    if not hasattr(os, "unshare"):
+        raise NamespaceUnavailable(
+            f"{capability}: this interpreter has no os.unshare (needs CPython 3.12+ on Linux)"
+        )
+    uid, gid = os.getuid(), os.getgid()
+    try:
+        os.unshare(clone_flags)
+    except OSError as error:
+        raise NamespaceUnavailable(
+            f"{capability}: unshare({clone_flags:#x}) refused: {error}"
+        ) from error
+    try:
+        with open("/proc/self/setgroups", "w", encoding="ascii") as handle:
+            handle.write("deny")
+        with open("/proc/self/uid_map", "w", encoding="ascii") as handle:
+            handle.write(f"{uid} {uid} 1")
+        with open("/proc/self/gid_map", "w", encoding="ascii") as handle:
+            handle.write(f"{gid} {gid} 1")
+    except OSError as error:
+        raise NamespaceUnavailable(
+            f"{capability}: namespace created but uid/gid mapping failed: {error}"
+        ) from error
+    return {
+        "flags": f"{clone_flags:#x}",
+        "uid_map": f"{uid} {uid} 1",
+        "gid_map": f"{gid} {gid} 1",
+    }
+
+
+def enter_private_network_namespace() -> dict[str, str]:
+    """Move the calling process into a new user+network namespace (RX-08).
+
+    The network-only entry point, kept as the narrowest possible request: a run
+    that asks for egress denial and nothing else gets no mount namespace. A run
+    that asks for both calls :func:`enter_namespaces` once with the combined
+    flags -- see :mod:`retrace_runner.child_main`.
 
     Raises
     ------
@@ -88,25 +154,13 @@ def enter_private_network_namespace() -> dict[str, str]:
     reason = namespace_support_reason()
     if reason is not None:
         raise NetworkNamespaceUnavailable(reason)
-    uid, gid = os.getuid(), os.getgid()
     try:
-        os.unshare(os.CLONE_NEWUSER | os.CLONE_NEWNET)
-    except OSError as error:
-        raise NetworkNamespaceUnavailable(
-            f"unshare(CLONE_NEWUSER|CLONE_NEWNET) refused: {error}"
-        ) from error
-    try:
-        with open("/proc/self/setgroups", "w", encoding="ascii") as handle:
-            handle.write("deny")
-        with open("/proc/self/uid_map", "w", encoding="ascii") as handle:
-            handle.write(f"{uid} {uid} 1")
-        with open("/proc/self/gid_map", "w", encoding="ascii") as handle:
-            handle.write(f"{gid} {gid} 1")
-    except OSError as error:
-        raise NetworkNamespaceUnavailable(
-            f"namespace created but uid/gid mapping failed: {error}"
-        ) from error
-    return {"mode": "user+net", "uid_map": f"{uid} {uid} 1", "gid_map": f"{gid} {gid} 1"}
+        established = enter_namespaces(
+            os.CLONE_NEWUSER | os.CLONE_NEWNET, capability="private network namespace"
+        )
+    except NamespaceUnavailable as error:
+        raise NetworkNamespaceUnavailable(str(error)) from error
+    return {"mode": "user+net", **{k: v for k, v in established.items() if k != "flags"}}
 
 
 def bring_loopback_up() -> bool:

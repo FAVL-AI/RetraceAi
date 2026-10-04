@@ -44,8 +44,18 @@ is visible in this very design: the kernel's own ZeroMQ transport keeps working
 under total egress denial *because libzmq opens its sockets in C*. Loopback also
 stays reachable under ``COOPERATIVE``.
 ``NetworkIsolation.KERNEL_NAMESPACE`` replaces that one layer with a real kernel
-network boundary (``unshare(CLONE_NEWUSER|CLONE_NEWNET)``), but the filesystem,
-``/proc`` and the PID namespace remain shared with the host.
+network boundary (``unshare(CLONE_NEWUSER|CLONE_NEWNET)``).
+
+**4. Filesystem confinement -- a real OS mechanism, over declared paths only.**
+``FilesystemConfinement.KERNEL_MOUNT_NAMESPACE`` adds ``CLONE_NEWNS`` and, inside
+that namespace, bind-mounts every declared protected path read-only and replaces
+every declared secret directory with an empty ``tmpfs``. Being a kernel
+mechanism it applies to ``ctypes`` and C extensions too, which is exactly the
+bypass layer 3 cannot see. Its limits are equally concrete: it confines **what
+the policy declares and nothing else**, it establishes **no distinct OS
+execution identity** (the child runs as the same uid), and ``/proc`` and the PID
+namespace remain shared with the host. Read
+:mod:`retrace_runner.mountns` before citing it as a boundary.
 
 **Conclusion, to be quoted as written:** this runner is appropriate for
 *authorised but untrusted* scientific code -- code a reviewer has read and
@@ -83,15 +93,21 @@ from typing import Any, Final
 
 from retrace_contracts import EnvironmentManifest, ExecutionStatus
 
-from . import guard
+from . import guard, mountns
 from .errors import (
     ExecutionEnvironmentUnavailable,
+    FilesystemConfinementUnavailable,
     IsolationUnavailable,
     NotebookAdmissionRefused,
     ScratchConfinementError,
 )
 from .netns import namespace_support_reason
-from .policy import DEFAULT_LIMITS, ExecutionLimits, NetworkIsolation
+from .policy import (
+    DEFAULT_LIMITS,
+    ExecutionLimits,
+    FilesystemConfinement,
+    NetworkIsolation,
+)
 from .protocol import EXIT_ENVIRONMENT_UNAVAILABLE, EXIT_ISOLATION_UNAVAILABLE, EXIT_OK
 from .results import ExecutionResult, IsolationReport
 
@@ -131,8 +147,12 @@ ISOLATION_LIMITS: Final[tuple[str, ...]] = (
     "restrictions that native code bypasses entirely.",
     "RLIMIT_AS bounds address space, not resident memory. The host OOM killer "
     "can still terminate a run below the configured cap.",
-    "KERNEL_NAMESPACE isolates the network only: the filesystem, /proc and the "
-    "PID namespace stay shared with the host.",
+    "KERNEL_NAMESPACE isolates the network only. KERNEL_MOUNT_NAMESPACE adds a "
+    "kernel filesystem boundary over the paths the policy DECLARES; an undeclared "
+    "path stays writable, and /proc and the PID namespace stay shared with the host.",
+    "Filesystem confinement establishes no distinct OS execution identity: the "
+    "child runs as the same uid as the runner. It confines a cooperatively "
+    "launched child and is not protection against a compromised host.",
     "This is not a sandbox for hostile code. Hostile code needs a kernel or "
     "hypervisor boundary, which this build does not provide.",
 )
@@ -343,6 +363,50 @@ def _preflight_isolation(limits: ExecutionLimits) -> None:
         reason = namespace_support_reason()
         if reason is not None:
             raise IsolationUnavailable(capability="kernel network namespace", detail=reason)
+    if limits.filesystem_confinement is FilesystemConfinement.KERNEL_MOUNT_NAMESPACE:
+        # Measured, not inferred: the probe ATTEMPTS the mounts in a throwaway
+        # child and includes its own control write, because "os.unshare exists"
+        # is not evidence that this kernel's policy permits the operation.
+        reason = mountns.probe_confinement_capability()
+        if reason is not None:
+            raise FilesystemConfinementUnavailable(detail=reason)
+
+
+def _refuse_overlapping_declaration(workdir: Path, limits: ExecutionLimits) -> None:
+    """Refuse a declaration that overlaps the run's own writable area (RX-08).
+
+    Two refusals, in both directions, and neither is pedantry:
+
+    * a run root **inside** a declared protected path could not write its own
+      outputs or its own run record, and the failure would surface as a
+      scientific failure rather than as the misconfiguration it is;
+    * a declared path **inside** the run root would make part of the runner's
+      control directory read-only, so the child could not record what happened.
+
+    Raised before any directory is created, so the exception is positive
+    evidence that nothing was prepared and nothing ran.
+    """
+    declared = (*limits.protected_paths, *limits.secret_paths)
+    if not declared:
+        return
+    run_root = str(workdir)
+    for path in declared:
+        if _path_within(run_root, path):
+            raise FilesystemConfinementUnavailable(
+                detail=f"the run root {run_root!r} lies inside declared protected path "
+                f"{path!r}; the run could not write its own outputs or run record"
+            )
+        if _path_within(path, run_root):
+            raise FilesystemConfinementUnavailable(
+                detail=f"declared protected path {path!r} lies inside the run root "
+                f"{run_root!r}; confining the runner's own control area would stop it "
+                "recording what happened"
+            )
+
+
+def _path_within(candidate: str, root: str) -> bool:
+    """Whether ``candidate`` is ``root`` or lies beneath it, by path components."""
+    return candidate == root or candidate.startswith(root.rstrip("/") + "/")
 
 
 def _prepare_directories(workdir: Path) -> dict[str, Path]:
@@ -457,6 +521,35 @@ def _as_network_isolation(value: str, fallback: NetworkIsolation) -> NetworkIsol
         return fallback
 
 
+def _as_filesystem_confinement(
+    value: str, fallback: FilesystemConfinement
+) -> FilesystemConfinement:
+    """Parse a child-reported confinement, defaulting to the requested one.
+
+    Same rule as :func:`_as_network_isolation`: an unrecognised value never
+    becomes a *weaker* mode in the record, and the mismatch check in
+    :func:`run_notebook` has already refused the run if the child reported
+    anything other than what was asked for.
+    """
+    try:
+        return FilesystemConfinement(value)
+    except ValueError:
+        return fallback
+
+
+def _raise_isolation_refusal(report: dict[str, Any], *, detail: str) -> None:
+    """Raise the most specific named refusal the child's report supports (RX-08).
+
+    The filesystem capability gets its own exception type because it is the half
+    of T2 a verdict may cite; everything else is the general refusal. Both are
+    :class:`~retrace_runner.errors.IsolationUnavailable`, so no caller can
+    proceed by catching the wrong one.
+    """
+    if str(report.get("isolation_capability") or "") == "kernel filesystem confinement":
+        raise FilesystemConfinementUnavailable(detail=detail)
+    raise IsolationUnavailable(capability="child-side isolation", detail=detail)
+
+
 def run_notebook(
     notebook_path: str | os.PathLike[str],
     workdir: str | os.PathLike[str],
@@ -505,7 +598,9 @@ def run_notebook(
     )
     _preflight_isolation(limits)
     _preflight_environment(limits)
-    layout = _prepare_directories(Path(workdir).resolve())
+    resolved_workdir = Path(workdir).resolve()
+    _refuse_overlapping_declaration(resolved_workdir, limits)
+    layout = _prepare_directories(resolved_workdir)
     _materialise_guard(layout["guard"])
 
     admitted_copy = layout["control"] / "notebook.ipynb"
@@ -530,6 +625,9 @@ def run_notebook(
         ],
         "guard_network": guard_network,
         "network": limits.network.value,
+        "filesystem_confinement": limits.filesystem_confinement.value,
+        "protected_paths": list(limits.protected_paths),
+        "secret_paths": list(limits.secret_paths),
         "deny_child_process_spawn": limits.deny_child_process_spawn,
         "max_address_space_bytes": limits.max_address_space_bytes,
         "max_file_size_bytes": limits.max_file_size_bytes,
@@ -610,8 +708,8 @@ def run_notebook(
 
     isolation_error = report.get("isolation_error")
     if returncode == EXIT_ISOLATION_UNAVAILABLE or returncode == guard.GUARD_INSTALL_FAILURE_EXIT:
-        raise IsolationUnavailable(
-            capability="child-side isolation",
+        _raise_isolation_refusal(
+            report,
             detail=str(isolation_error or f"child exit {returncode}; stderr: {stderr[-800:]}"),
         )
     if returncode == EXIT_ENVIRONMENT_UNAVAILABLE:
@@ -620,15 +718,23 @@ def run_notebook(
             detail=str(report.get("environment_error") or f"child exit {returncode}"),
         )
     if isolation_error:
-        raise IsolationUnavailable(capability="child-side isolation", detail=str(isolation_error))
+        _raise_isolation_refusal(report, detail=str(isolation_error))
 
     applied_network = str(report.get("network_applied") or limits.network.value)
+    applied_filesystem = str(
+        report.get("filesystem_applied") or limits.filesystem_confinement.value
+    )
     if not timed_out and returncode is not None and returncode >= 0:
         if applied_network != limits.network.value:
             raise IsolationUnavailable(
                 capability="network isolation",
                 detail=f"requested {limits.network.value} but the child applied "
                 f"{applied_network}; a downgrade is never accepted",
+            )
+        if applied_filesystem != limits.filesystem_confinement.value:
+            raise FilesystemConfinementUnavailable(
+                detail=f"requested {limits.filesystem_confinement.value} but the child "
+                f"applied {applied_filesystem}; a downgrade is never accepted"
             )
 
     if timed_out:
@@ -646,6 +752,12 @@ def run_notebook(
         network_requested=limits.network,
         network_applied=_as_network_isolation(applied_network, limits.network),
         write_confinement=limits.write_confinement,
+        filesystem_requested=limits.filesystem_confinement,
+        filesystem_applied=_as_filesystem_confinement(
+            applied_filesystem, limits.filesystem_confinement
+        ),
+        readonly_paths=tuple(str(path) for path in report.get("readonly_paths") or ()),
+        hidden_paths=tuple(str(path) for path in report.get("hidden_paths") or ()),
         scratch_root=str(layout["scratch"]),
         address_space_limit_bytes=report.get("address_space_limit_bytes"),
         guard_receipt_verified=bool(report.get("guard_receipt")),

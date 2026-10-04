@@ -14,6 +14,11 @@ Requirement coverage:
 * :class:`IsolationUnavailable` -- RX-08. A requested isolation capability
   (process-group containment, address-space cap, kernel network namespace,
   scratch confinement) could not be established. Fail closed.
+* :class:`FilesystemConfinementUnavailable` -- RX-08. The *kernel filesystem*
+  confinement specifically could not be established, named separately because it
+  is the half of T2 a verdict may cite. A subclass of
+  :class:`IsolationUnavailable`, so existing fail-closed handling still catches
+  it and no caller can accidentally proceed.
 * :class:`ScratchConfinementError` -- RX-08. The scratch root could not be
   created, is not a directory, or the notebook path cannot be admitted into it.
 * :class:`NotebookAdmissionRefused` -- RX-08, RX-42. The thing offered for
@@ -26,6 +31,7 @@ from __future__ import annotations
 
 __all__ = [
     "ExecutionEnvironmentUnavailable",
+    "FilesystemConfinementUnavailable",
     "IsolationUnavailable",
     "NotebookAdmissionRefused",
     "RunnerError",
@@ -92,6 +98,22 @@ class IsolationUnavailable(RunnerError):
             if detail:
                 message += f" -- {detail}"
         super().__init__(message)
+
+
+class FilesystemConfinementUnavailable(IsolationUnavailable):
+    """The requested kernel filesystem confinement could not be established (RX-08).
+
+    Raised by the parent before anything is executed, or derived from the child's
+    refusal, for every failure mode alike: the namespace is unavailable on this
+    host, a declared path does not exist, a bind did not take effect, a writable
+    submount survives under a protected path, or the run's own scratch area lies
+    inside a path declared protected.
+
+    There is no variant of this exception that means "ran with less confinement".
+    """
+
+    def __init__(self, message: str | None = None, *, detail: str | None = None) -> None:
+        super().__init__(message, capability="kernel filesystem confinement", detail=detail)
 
 
 class ScratchConfinementError(RunnerError):

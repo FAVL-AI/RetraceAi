@@ -26,7 +26,7 @@ from retrace_contracts import (
     Sha256Hex,
 )
 
-from .policy import NetworkIsolation, WriteConfinement
+from .policy import FilesystemConfinement, NetworkIsolation, WriteConfinement
 
 __all__ = ["ExecutionResult", "IsolationReport"]
 
@@ -46,6 +46,27 @@ class IsolationReport(FrozenRecord):
     network_requested: NetworkIsolation = Field(description="Egress denial that was requested.")
     network_applied: NetworkIsolation = Field(description="Egress denial actually established.")
     write_confinement: WriteConfinement = Field(description="Write confinement established.")
+    filesystem_requested: FilesystemConfinement = Field(
+        default=FilesystemConfinement.NONE,
+        description="Kernel filesystem confinement that was requested.",
+    )
+    filesystem_applied: FilesystemConfinement = Field(
+        default=FilesystemConfinement.NONE,
+        description="Kernel filesystem confinement actually established and verified in "
+        "the child's mount namespace. The runner refuses to produce a result in which "
+        "this is weaker than what was requested, so a verdict can quote it.",
+    )
+    readonly_paths: tuple[str, ...] = Field(
+        default=(),
+        description="Paths verified read-only inside the run's mount namespace. Verified "
+        "against /proc/self/mountinfo by the child, not merely requested. Empty under "
+        "FilesystemConfinement.NONE, where executed code could reach any path.",
+    )
+    hidden_paths: tuple[str, ...] = Field(
+        default=(),
+        description="Directories verified replaced by an empty tmpfs inside the run's "
+        "mount namespace, so their contents were unreachable to executed code.",
+    )
     scratch_root: NonEmptyStr = Field(description="Absolute path the notebook was confined to.")
     address_space_limit_bytes: int | None = Field(
         default=None, ge=0, description="RLIMIT_AS observed inside the kernel, when reported."

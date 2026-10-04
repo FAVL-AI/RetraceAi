@@ -1,8 +1,10 @@
 """RETRACE isolated runner -- untrusted execution, and nothing else (RX-08, RX-11).
 
 This service runs a declared notebook in a subprocess under a bounded wall
-clock, a bounded address space, writes confined to a scratch root, and egress
-denied. Read :mod:`retrace_runner.execution` before relying on any of that as a
+clock, a bounded address space, writes confined to a scratch root, egress
+denied, and -- when the policy declares it -- a kernel mount namespace in which
+the declared protected paths are read-only and the declared secret directories
+are empty. Read :mod:`retrace_runner.execution` before relying on any of that as a
 boundary: the process and resource layers are real OS mechanisms, the egress and
 write layers under ``COOPERATIVE`` are cooperative in-process restrictions that
 native code bypasses, and none of it is a sandbox for hostile code.
@@ -21,6 +23,7 @@ Unit                                       Requirement
 :class:`~retrace_runner.policy.ExecutionLimits`    RX-08, RX-15
 :mod:`retrace_runner.guard`                        RX-08
 :mod:`retrace_runner.netns`                        RX-08
+:mod:`retrace_runner.mountns`                      RX-08
 :func:`~retrace_runner.environment.capture_environment`  RX-15, RX-16
 :class:`~retrace_runner.results.ExecutionResult`   RX-08, RX-11, RX-18
 =========================================  =============================
@@ -31,6 +34,7 @@ from __future__ import annotations
 from .environment import capture_environment, installed_distributions
 from .errors import (
     ExecutionEnvironmentUnavailable,
+    FilesystemConfinementUnavailable,
     IsolationUnavailable,
     NotebookAdmissionRefused,
     RunnerError,
@@ -50,8 +54,20 @@ from .guard import (
     RetraceSpawnDenied,
     RetraceWriteDenied,
 )
-from .netns import NAMESPACE_LIMITS, NetworkNamespaceUnavailable
-from .policy import DEFAULT_LIMITS, ExecutionLimits, NetworkIsolation, WriteConfinement
+from .mountns import (
+    FILESYSTEM_LIMITS,
+    MountConfinementUnavailable,
+    RealisedConfinement,
+    probe_confinement_capability,
+)
+from .netns import NAMESPACE_LIMITS, NamespaceUnavailable, NetworkNamespaceUnavailable
+from .policy import (
+    DEFAULT_LIMITS,
+    ExecutionLimits,
+    FilesystemConfinement,
+    NetworkIsolation,
+    WriteConfinement,
+)
 from .protocol import (
     EXIT_CELL_ERROR,
     EXIT_ENVIRONMENT_UNAVAILABLE,
@@ -72,17 +88,23 @@ __all__ = [
     "EXIT_INTERNAL_ERROR",
     "EXIT_ISOLATION_UNAVAILABLE",
     "EXIT_OK",
+    "FILESYSTEM_LIMITS",
     "GUARD_LIMITS",
     "ISOLATION_LIMITS",
     "NAMESPACE_LIMITS",
     "ExecutionEnvironmentUnavailable",
     "ExecutionLimits",
     "ExecutionResult",
+    "FilesystemConfinement",
+    "FilesystemConfinementUnavailable",
     "IsolationReport",
     "IsolationUnavailable",
+    "MountConfinementUnavailable",
+    "NamespaceUnavailable",
     "NetworkIsolation",
     "NetworkNamespaceUnavailable",
     "NotebookAdmissionRefused",
+    "RealisedConfinement",
     "RetraceGuardDenied",
     "RetraceNetworkDenied",
     "RetraceSpawnDenied",
@@ -97,5 +119,6 @@ __all__ = [
     "capture_environment",
     "descendant_pids",
     "installed_distributions",
+    "probe_confinement_capability",
     "run_notebook",
 ]

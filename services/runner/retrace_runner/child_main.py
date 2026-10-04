@@ -10,8 +10,11 @@ Order of operations is load-bearing and fail-closed:
 
 1. resource ceilings (``RLIMIT_AS``/``FSIZE``/``CORE``) -- applied *before* any
    thread or kernel exists so the kernel inherits them;
-2. the private network namespace when one was requested -- ``CLONE_NEWUSER``
-   fails in a multi-threaded process, so this must precede everything;
+2. the requested kernel namespaces -- network, mount, or both -- in a **single**
+   ``unshare``, followed by the read-only binds and the empty ``tmpfs`` mounts
+   that the declared filesystem confinement asks for. ``CLONE_NEWUSER`` fails in
+   a multi-threaded process and cannot be unshared twice usefully, so this must
+   precede everything and must happen exactly once;
 3. the kernel's environment, including a ``PYTHONPATH`` containing *only* the
    guard directory, a redirected ``HOME``/``TMPDIR``/Jupyter dirs, and the
    ``RETRACE_GUARD_*`` variables;
@@ -48,7 +51,7 @@ import sys
 import time
 from typing import Any, Final
 
-from . import environment, guard, netns
+from . import environment, guard, mountns, netns
 from .protocol import (
     EXIT_CELL_ERROR,
     EXIT_ENVIRONMENT_UNAVAILABLE,
@@ -170,6 +173,70 @@ def _collect_reported_claims(notebook: Any) -> list[str]:
     return claims
 
 
+def _enter_requested_namespaces(spec: dict[str, Any], report: dict[str, Any]) -> int | None:
+    """Enter every requested kernel namespace, or refuse the run (RX-08).
+
+    One ``unshare`` for both capabilities, because ``CLONE_NEWUSER`` must be
+    unshared once: the child needs a single user namespace in which it holds the
+    capabilities that a private network namespace and a private mount namespace
+    both require. Returns ``None`` when everything requested was established, or
+    the exit status the child must use.
+
+    Fail-closed in both directions. A namespace that cannot be created refuses
+    the run, and so does a filesystem confinement that cannot be *verified in
+    force* -- :func:`retrace_runner.mountns.apply_confinement` reads the mount
+    table back rather than trusting that ``mount(2)`` returning zero means the
+    declared protection holds.
+    """
+    want_network = spec["network"] == "KERNEL_NAMESPACE"
+    requested_filesystem = spec.get("filesystem_confinement", "NONE")
+    if requested_filesystem not in ("NONE", "KERNEL_MOUNT_NAMESPACE"):
+        report["isolation_capability"] = "kernel filesystem confinement"
+        report["isolation_error"] = (
+            f"unrecognised filesystem_confinement {requested_filesystem!r}; an "
+            "unrecognised confinement is refused, never treated as NONE"
+        )
+        return EXIT_ISOLATION_UNAVAILABLE
+    want_filesystem = requested_filesystem == "KERNEL_MOUNT_NAMESPACE"
+    if not want_network and not want_filesystem:
+        return None
+
+    clone_flags = 0
+    capabilities: list[str] = []
+    if want_network:
+        clone_flags |= os.CLONE_NEWUSER | os.CLONE_NEWNET
+        capabilities.append("kernel network namespace")
+    if want_filesystem:
+        clone_flags |= os.CLONE_NEWUSER | os.CLONE_NEWNS
+        capabilities.append("kernel filesystem confinement")
+    try:
+        netns.enter_namespaces(clone_flags, capability=" + ".join(capabilities))
+    except netns.NamespaceUnavailable as error:
+        report["isolation_capability"] = (
+            "kernel filesystem confinement" if want_filesystem else "kernel network namespace"
+        )
+        report["isolation_error"] = f"namespace unavailable: {error}"
+        return EXIT_ISOLATION_UNAVAILABLE
+
+    if want_network:
+        report["network_applied"] = "KERNEL_NAMESPACE"
+        report["loopback_available"] = netns.bring_loopback_up()
+    if want_filesystem:
+        try:
+            realised = mountns.apply_confinement(
+                readonly_paths=tuple(spec.get("protected_paths") or ()),
+                hidden_paths=tuple(spec.get("secret_paths") or ()),
+            )
+        except mountns.MountConfinementUnavailable as error:
+            report["isolation_capability"] = "kernel filesystem confinement"
+            report["isolation_error"] = f"filesystem confinement not established: {error}"
+            return EXIT_ISOLATION_UNAVAILABLE
+        report["filesystem_applied"] = "KERNEL_MOUNT_NAMESPACE"
+        report["readonly_paths"] = list(realised.readonly_paths)
+        report["hidden_paths"] = list(realised.hidden_paths)
+    return None
+
+
 def main(argv: list[str]) -> int:
     """Execute one notebook under the declared isolation and report (RX-08, RX-11)."""
     if len(argv) != 2:
@@ -181,11 +248,15 @@ def main(argv: list[str]) -> int:
     control_dir = spec["control_dir"]
     report: dict[str, Any] = {
         "network_applied": "COOPERATIVE",
+        "filesystem_applied": "NONE",
+        "readonly_paths": [],
+        "hidden_paths": [],
         "loopback_available": None,
         "guard_receipt": None,
         "cell_error": None,
         "notebook_reported_claims": [],
         "isolation_error": None,
+        "isolation_capability": None,
         "environment_error": None,
     }
     result_path = os.path.join(control_dir, "result.json")
@@ -197,15 +268,10 @@ def main(argv: list[str]) -> int:
         _write_json(result_path, report)
         return EXIT_ISOLATION_UNAVAILABLE
 
-    if spec["network"] == "KERNEL_NAMESPACE":
-        try:
-            netns.enter_private_network_namespace()
-        except netns.NetworkNamespaceUnavailable as error:
-            report["isolation_error"] = f"kernel network namespace unavailable: {error}"
-            _write_json(result_path, report)
-            return EXIT_ISOLATION_UNAVAILABLE
-        report["network_applied"] = "KERNEL_NAMESPACE"
-        report["loopback_available"] = netns.bring_loopback_up()
+    refusal = _enter_requested_namespaces(spec, report)
+    if refusal is not None:
+        _write_json(result_path, report)
+        return refusal
 
     _prepare_kernel_environment(spec)
 
