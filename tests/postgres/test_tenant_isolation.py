@@ -265,11 +265,17 @@ def test_cross_tenant_update_and_delete_affect_nothing(svc_dsn: str, seeded) -> 
 
 @pytest.mark.skip(
     reason=(
-        "NOT_RUN, not passing: requires services/api, which does not exist. The "
-        "requirement is that the application derives the tenant from an "
-        "AUTHENTICATED principal and never from a caller-supplied value. These "
-        "tests set the context directly, so they prove the database half only. "
-        "Kept as an explicit, visible gap rather than omitted."
+        "NOT_RUN here by design, and no longer a gap. The requirement - that the "
+        "application derives the tenant from an AUTHENTICATED principal and never "
+        "from a caller-supplied value - cannot be asserted from this file, which "
+        "sets the database context directly and therefore proves the database half "
+        "only. It IS asserted at the layer that owns it: see "
+        "tests/api/test_tenancy_and_auth.py, specifically "
+        "test_a_header_naming_an_actor_or_tenant_does_not_authenticate and "
+        "test_naming_a_workspace_does_not_grant_access_to_it. "
+        "(This reason previously said services/api did not exist. It does, with "
+        "186 passing tests; the claim was stale and is corrected rather than left "
+        "to mislead a reader of a public repository.)"
     )
 )
 def test_tenant_context_comes_from_authenticated_authorisation() -> None:  # pragma: no cover
