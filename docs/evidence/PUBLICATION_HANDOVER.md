@@ -1,8 +1,38 @@
-# Publication handover — push blocked by the local pre-push guard
+# Publication handover — blocker resolved, push completed
 
-Status: **PUSH NOT PERFORMED.** Everything up to the push is done and verified.
-The blocker is local and needs Frank's decision; it is not an auth, permission
-or conflict problem.
+Status: **PUBLISHED.** The blocker described below was resolved by Frank's
+decision (option 1), and the push then succeeded and was verified.
+
+| Field | Value |
+|---|---|
+| Remote | `git@github.com:FAVL-AI/RetraceAi.git` |
+| Branch | `build/retrace-t0-t2` (first branch in the repository) |
+| Verified remote SHA | `16abbe762f8488e180d78171be1c05a2cc3073cb` |
+| Local HEAD at push | identical — confirmed by `git ls-remote` **and** by the GitHub API |
+| Author recorded | Frank Asante Van Laarhoven |
+| Pushed at | 2026-10-06T22:45:44Z |
+
+**How the blocker was resolved.** Frank chose option 1: a message-level
+exemption in the guard. `engineering-controls/hooks/pre-push` now neutralises a
+vendor token *immediately followed by a known instruction/config extension*
+before the vendor scan runs — so a bare filename passes while a bare vendor
+name, a co-author trailer, a generated-with line, a model id and a prose credit
+all still match, because none of them is a filename. Both halves are pinned in
+`tests/test-pre-push.sh`, including two smuggle attempts (a trailer dressed as a
+filename, and a vendor name given an unrelated extension); both are still
+refused. The controls suite went from 152 to **167 passing, 0 failed**.
+
+**One thing is still outstanding, in a different repository.** That hook change
+is **applied on disk but UNCOMMITTED** in `FAVL-Engineering-OS`: the commit was
+refused by the environment's self-modification guard, because it is a change to
+the control that governs my own commits. It needs Frank's explicit permission to
+commit. Nothing was pushed there — publishing that repository was never
+authorised.
+
+The original blocker report is preserved verbatim below, because it is the
+record of why the control was changed.
+
+---
 
 ## What is ready
 
